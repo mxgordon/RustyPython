@@ -1,0 +1,3 @@
+a = object()
+
+print(a)
