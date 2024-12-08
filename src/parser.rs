@@ -36,13 +36,12 @@ pub enum Define {
 pub enum Statement {
     Expr(Expr),
     Defn(Define),
-    For(String, Expr, CodeBlock) // allow for variable unpacking
+    For(String, Expr, CodeBlock), // TODO allow for variable unpacking
+    Return(Expr),
+    Continue,
+    Break,
 }
 
-// #[derive(Clone, Debug)]
-// pub enum CodeBlock {
-//     Block(Vec<Statement>, usize),
-// }
 #[derive(Clone, Debug)]
 pub struct CodeBlock {
     pub statements: Vec<Statement>,
@@ -102,6 +101,10 @@ peg::parser!{
 
         pub rule statement(depth: usize) -> Statement =
         nosp() "for" sp1() v:id() sp1() "in" sp1() e:expr() sp() ":" sp() nl() c:code(depth + 1) {Statement::For(v, e, c)}
+        / nosp() "return" sp() e:expr() {Statement::Return(e)}
+        / nosp() "return" sp() {Statement::Return(Expr::Val(Value::None))}  // empty "return" statement
+        / nosp() "continue" {Statement::Continue}
+        / nosp() "break" {Statement::Break}
         / nosp() d:define() {Statement::Defn(d)}
         / nosp() e:expr() {Statement::Expr(e)}
 

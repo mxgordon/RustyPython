@@ -9,11 +9,13 @@ mod builtins;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-
+use std::sync::Arc;
 use parser::python_parser;
+use crate::builtins::pyobjects::{PyFlag, PyObject};
 use crate::evaluator::{evaluate};
 
 fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();
@@ -33,9 +35,8 @@ fn main() {
     let parse_tree = python_parser::code(contents.trim(), 0);
     if let Ok(parse_tree) = parse_tree {
         println!("{:?}", parse_tree);
-        
-        // let mut arena = pyarena::PyArena::new();
-        // arena.load_builtins();
+
+        println!("\n --- Python Output ---\n");
         
         evaluate(parse_tree);
         
