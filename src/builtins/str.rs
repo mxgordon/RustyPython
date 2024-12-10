@@ -1,27 +1,26 @@
-use std::sync::Arc;
-use crate::builtins::pyobjects::{PyInternalFunction, PyObject};
+use crate::builtins::pyobjects::{PyInternalFunction, PyObject, PyPointer};
 
-pub fn py_str(obj: Arc<PyObject>) -> Arc<PyObject> {
+pub fn py_str(obj: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let obj = obj.clone();
-    let str_fn = obj.get_attribute("__str__".to_string());
+    let str_fn = obj.borrow().get_attribute("__str__".to_string());
     
     if str_fn.is_none() {
         panic!("Object has no __str__ method"); // TODO Make python error
     }
     
     let str_fn = str_fn.unwrap();
-    let mut str_rtn = Arc::new(PyObject::None);
+    let mut str_rtn = PyPointer::new(PyObject::None);
     
-    match &*str_fn {
-        PyObject::InternalSlot(func) => {
-            match &*func.clone() { 
-                PyInternalFunction::OneArg(func) => {
+    match **str_fn.borrow() {
+        PyObject::InternalSlot(ref func) => {
+            match **func.borrow() { 
+                PyInternalFunction::UnaryFunc(func) => {
                     str_rtn = func.call((obj.clone(),));
                 },
                 _ => {todo!()}
             }
         },
-        PyObject::Function(func) => {
+        PyObject::Function(ref func) => {
             todo!()
         },
         _ => {panic!("Object has no __str__ method");}  // TODO Make python error

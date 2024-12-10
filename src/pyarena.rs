@@ -1,39 +1,32 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use crate::builtins::object::py_object;
-use crate::builtins::print::py_print;
-use crate::builtins::pyint::py_int;
-use crate::builtins::pyobjects::{PyInternalFunction, PyObject};
-use crate::builtins::range::py_range;
+use crate::builtins::globals::Globals;
+use crate::builtins::pyobjects::{PyObject, PyPointer};
 
 #[derive(Debug)]
 pub struct PyArena {
-    state: HashMap<String, Arc<PyObject>>,
+    state: HashMap<String, PyPointer<PyObject>>,
+    globals: Globals
 }
 
 impl PyArena {
     pub fn new() -> Self {
+        let globals = Globals::new();
+        
         PyArena {
-            state: HashMap::new(),
+            state: globals.load_into_hashmap(),
+            globals
         }
     }
-    
-    pub fn load_builtins(&mut self) {
-        self.state.insert("object".to_string(), Arc::new(PyObject::Class(py_object.clone())));
-        self.state.insert("int".to_string(), Arc::new(PyObject::Class(py_int.clone())));
-        self.state.insert("print".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::ManyArgs(py_print)))));
-        self.state.insert("range".to_string(), Arc::new(PyObject::Class(py_range.clone())));
-    } 
 
-    pub fn set(&mut self, key: String, value: Arc<PyObject>) {
+    pub fn set(&mut self, key: String, value: PyPointer<PyObject>) {
         self.state.insert(key, value);
     }
 
-    pub fn get(&self, key: &str) -> Option<Arc<PyObject>> {
+    pub fn get(&self, key: &str) -> Option<PyPointer<PyObject>> {
         self.state.get(key).cloned()
     }
     
-    pub fn remove(&mut self, key: &str) -> Option<Arc<PyObject>> {
+    pub fn remove(&mut self, key: &str) -> Option<PyPointer<PyObject>> {
         self.state.remove(key)
     }
 }

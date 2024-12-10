@@ -1,67 +1,68 @@
-use std::sync::Arc;
-use lazy_static::lazy_static;
-use crate::builtins::object::{expect_class, py_object};
+use crate::builtins::pyobjects::PyPointer;
+use crate::builtins::object::{py_object};
 use crate::builtins::pyobjects::*;
+use crate::builtins::pyobjects::PyInternalFunction::{BivariateFunc, InitFunc, NewFunc, UnaryFunc};
 
-lazy_static! {
-    pub static ref py_int: Arc<PyClass> = Arc::new(PyClass::new("int", vec![
-        ("__new__".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::TwoArgs(int__new__))))),
-        ("__init__".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::TwoArgs(int__init__))))),
-        ("__add__".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::TwoArgs(int__add__))))),
-        ("__pow__".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::TwoArgs(int__pow__))))),
-        ("__repr__".to_string(), Arc::new(PyObject::InternalSlot(Arc::new(PyInternalFunction::OneArg(int__repr__))))),
-        ].into_iter().collect(),
-        vec![py_object.clone()]));
-}
-
-pub fn expect_int(pyobj: Arc<PyObject>) -> i64 {  //! This lowkey might end up constantly referencing a new pointer to the i64
-    match &*pyobj {
+pub fn expect_int(pyobj: PyPointer<PyObject>) -> i64 {  // TODO This lowkey might end up constantly referencing a new pointer to the i64
+    match **pyobj.borrow() {
         PyObject::Int(value) => value.clone(),
         _ => panic!("Expected int"),
     }
 }
 
-pub fn expect_set_int(pyobj: Arc<PyObject>, new_value: i64){
-    match &*pyobj {
-        PyObject::Int(value) => {*value + new_value},
+pub fn expect_set_int(pyobj: PyPointer<PyObject>, new_value: i64){
+    match **pyobj.borrow() {
+        PyObject::Int(value) => {value + new_value},
         _ => panic!("Expected int"),
     };
 }
 
-pub fn int__new__(pyclass: Arc<PyObject>, value: Arc<PyObject>) -> Arc<PyObject> {  // error handling
-    let _pyclass = expect_class(pyclass);  // TODO do something to make inheritance good
-
-    let new_value = match &*value {  // cast value
-        PyObject::Int(value) => value.clone(),  // copy the value
-        PyObject::Float(value) => *value as i64,
-        PyObject::Str(value) => value.parse::<i64>().unwrap(),
+pub fn int__new__(_pyclass: PyPointer<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {  // error handling
+    let value = pyargs.get(0).unwrap();
+    
+    let new_value = match **value.borrow() {  // cast value
+        PyObject::Int(ref value) => value.clone(),  // copy the value
+        PyObject::Float(ref value) => *value as i64,
+        PyObject::Str(ref value) => value.parse::<i64>().unwrap(),
         _ => panic!("Expected int, str, or float"), // TODO make python error
     };
     
-    let pyself = Arc::new(PyObject::Int(new_value));
+    let pyself = PyPointer::new(PyObject::Int(new_value));  // idk how to do inheritance with this
     pyself
 }
 
-pub fn int__init__(pyself: Arc<PyObject>, value: Arc<PyObject>) -> Arc<PyObject> {
-    Arc::new(PyObject::None)
+pub fn int__init__(_pyself: PyPointer<PyObject>, _pyargs: Vec<PyPointer<PyObject>>) {
 }
 
-pub fn int__add__(pyself: Arc<PyObject>, other: Arc<PyObject>) -> Arc<PyObject> {
+pub fn int__add__(pyself: PyPointer<PyObject>, other: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let self_value = expect_int(pyself);
     let other_value = expect_int(other);  // TODO make this work for other types (float)
     
-    Arc::new(PyObject::Int(self_value + other_value))
+    PyPointer::new(PyObject::Int(self_value + other_value))
 }
 
-pub fn int__pow__(pyself: Arc<PyObject>, other: Arc<PyObject>) -> Arc<PyObject> {
+pub fn int__pow__(pyself: PyPointer<PyObject>, other: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let self_value = expect_int(pyself);
     let other_value = expect_int(other);  // TODO make this work for other types (float)
 
-    Arc::new(PyObject::Int(self_value.pow(other_value as u32)))
+    PyPointer::new(PyObject::Int(self_value.pow(other_value as u32)))
 }
 
-pub fn int__repr__(pyself: Arc<PyObject>) -> Arc<PyObject> {
+pub fn int__repr__(pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let value = expect_int(pyself);
-    Arc::new(PyObject::Str(value.to_string()))
+    PyPointer::new(PyObject::Str(value.to_string()))
 }
+pub const py_int: PyClass = PyClass::Internal {
+    name_func: || "int".to_string(),
+    super_classes_func: || vec![PyPointer::new(py_object)],
+    __new__: Some(NewFunc(&(int__new__ as NewFuncType))),
+    __init__: Some(InitFunc(&(int__init__ as InitFuncType))),
+    __str__: None,
+    __repr__: Some(UnaryFunc(&(int__repr__ as UnaryFuncType))),
+    __add__: Some(BivariateFunc(&(int__add__ as BivariateFuncType))),
+    __pow__: Some(BivariateFunc(&(int__pow__ as BivariateFuncType))),
+
+    __iter__: None,
+    __next__: None,
+};
 

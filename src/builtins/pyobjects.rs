@@ -1,57 +1,113 @@
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::cmp::PartialEq;
-// use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::fmt::Debug;
 use std::rc::Rc;
-use std::sync::{Arc, PoisonError, RwLock};
+use std::sync::{Arc, RwLock};
 use crate::builtins::pyint::py_int;
-// use std::rc::Arc;
 use crate::parser::CodeBlock;
 
-#[derive(Debug)]
-pub struct PyClass {
-    pub name: String,
-    attributes: HashMap<String, Arc<PyObject>>,
-    base_classes: Vec<Arc<PyClass>>, // Support for inheritance
+
+// type Rc<T> = Arc<T>;
+macro_rules! match_magic_funcs {
+    ($name_str:expr, $($name:ident),*) => {
+            match $name_str {
+                $(
+                    stringify!($name) => $name,
+                )*
+                _ => &None,
+            }
+    };
 }
 
-impl PyClass {
-    pub fn new(name: &str, attributes: HashMap<String, Arc<PyObject>>, base_classes: Vec<Arc<PyClass>>) -> Self {
-        PyClass {
-            name: name.to_string(),
-            attributes,
-            base_classes,
-        }
-    }
+#[derive(Debug)]
+pub enum PyClass {
+    UserDefined {
+        name: String,
+        attributes: HashMap<String, PyPointer<PyObject>>,
+        super_classes: Vec<PyPointer<PyClass>>
+    },
+    Internal {
+        name_func: fn() -> String,  // immutable string crate
+        super_classes_func: fn() -> Vec<PyPointer<PyClass>>,
+        
+        // --- internal functions ---
+        // Instantiating functions
+        __new__: Option<PyInternalFunction>,
+        __init__: Option<PyInternalFunction>,
+        
+        // String functions
+        __str__: Option<PyInternalFunction>,
+        __repr__: Option<PyInternalFunction>,
+        
+        // Math functions
+        __add__: Option<PyInternalFunction>,
+        __pow__: Option<PyInternalFunction>,
+        
+        // Iterating functions
+        __iter__: Option<PyInternalFunction>,
+        __next__: Option<PyInternalFunction>,
+    },
+}
 
-    pub fn search_for_attribute(&self, name: String) -> Option<Arc<PyObject>> {
-        let attr = self.attributes.get(&name);
-        if attr.is_some() {
-            return attr.cloned();
+impl PyClass {    
+    pub fn get_name(&self) -> String {
+        match self {
+            PyClass::UserDefined { name, .. } => name.clone(),
+            PyClass::Internal { name_func, .. } => name_func(),
         }
-
-        for base_class in &self.base_classes {
-            let bc = base_class.clone();
-
-            let attr = bc.search_for_attribute(name.clone());
-            
-            if attr.is_some() {
-                return attr;
-            }
-        }
-        None
     }
     
-    // pub fn new_internal_attrs(name: &str, attributes: Vec<&str>, base_classes: Vec<Arc<PyClass>>) -> Self {
-    //     let attr_map = attributes.into_iter().map(|attr| (attr.to_string(), PyObject::InternalDef)).collect();
-    //
-    //     PyClass {
-    //         name: name.to_string(),
-    //         attributes: attr_map,
-    //         base_classes,
-    //     }
-    // }
+    pub fn get_super_classes(&self) -> Vec<PyPointer<PyClass>> {
+        match self {
+            PyClass::UserDefined { super_classes, .. } => super_classes.clone(),
+            PyClass::Internal { super_classes_func, .. } => super_classes_func(),
+        }
+    }
+    
+    pub fn defines_attribute(&self, name_str: String) -> bool {
+        match self {
+            PyClass::UserDefined { attributes, .. } => attributes.contains_key(&name_str),
+            PyClass::Internal {
+                name_func, super_classes_func, __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__
+            } => match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).is_some()
+        }
+    }
+
+    pub fn search_for_attribute(&self, name_str: String) -> Option<PyPointer<PyObject>> {
+        let search_result: Option<PyPointer<PyObject>> = match self {
+            PyClass::UserDefined { attributes, super_classes, .. } => {
+                let attr = attributes.get(&name_str);
+                if attr.is_some() {
+                    return attr.cloned();
+                }
+                
+                None
+            },
+            PyClass::Internal { __new__, __init__, __str__, __repr__, __add__, __pow__, name_func, super_classes_func, __iter__, __next__ } => { 
+                let search = match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).clone(); 
+                
+                if let Some(func) = search {
+                    return Some(PyPointer::new(PyObject::InternalSlot(PyPointer::new(func))));
+                }
+                
+                None
+            }
+
+        };
+        
+        if search_result.is_none() {
+            for base_class in self.get_super_classes() {
+                let attr = base_class.borrow().search_for_attribute(name_str.clone());
+            
+                if attr.is_some() {
+                    return attr.clone();
+                }
+            }
+        }
+
+        search_result
+    }
 }
 
 #[derive(Debug)]
@@ -81,29 +137,26 @@ pub struct PyFunction {
 
 #[derive(Debug)]
 pub struct PyInstance {
-    class: Arc<PyClass>,
-    attributes: RwLock<HashMap<String, Arc<PyObject>>>,
+    class: PyPointer<PyClass>,
+    attributes: RwLock<HashMap<String, PyPointer<PyObject>>>,
 }
 
 impl PyInstance {
-    pub fn new(py_class: Arc<PyClass>) -> Self {
+    pub fn new(py_class: PyPointer<PyClass>) -> Self {
         PyInstance {
             class: py_class,
             attributes: RwLock::new(HashMap::new()),
         }
     }
 
-    pub fn set_field(&mut self, key: String, value: Arc<PyObject>) -> bool  {
+    pub fn set_field(&mut self, key: String, value: PyPointer<PyObject>) {
         let mut attributes = self.attributes.get_mut().unwrap_or_else(|e| panic!("Failed to get mutable attributes: {:?}", e));
-        let insert_result = attributes.insert(key, value);
-        insert_result.is_some()
+        let _old_value = attributes.insert(key, value);
     }
 
-    // pub fn get_field(&self, key: &str) -> Result<Arc<PyObject>, PoisonError<std::sync::RwLockReadGuard<HashMap<String, Arc<PyObject>>>>> {
-    pub fn get_field(&self, key: &str) -> Option<Arc<PyObject>> {
+    pub fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>> {
         let attributes = self.attributes.read().ok()?;
         attributes.get(key).cloned()
-        // Ok(attributes.get(key).unwrap_or(&Arc::new(PyObject::None)).clone())
     }
 }
 
@@ -115,22 +168,22 @@ pub enum PyObject {
     // List(Vec<PyObject>),
     // Dict(HashMap<String, PyObject>),
     Bool(bool),
-    Class(Arc<PyClass>),
-    Instance(Arc<PyInstance>),
-    Function(Arc<PyFunction>),
-    Exception(Arc<PyException>),
+    Class(PyPointer<PyClass>),
+    Instance(PyPointer<PyInstance>),
+    Function(PyPointer<PyFunction>),
+    Exception(PyPointer<PyException>),
     None,
-    // InternalSlot(Arc<fn(Vec<PyObject>) -> PyObject>),
-    InternalSlot(Arc<PyInternalFunction>),
-    InternalFlag(Arc<PyFlag>),
+    // InternalSlot(PyPointer<fn(Vec<PyObject>) -> PyObject>),
+    InternalSlot(PyPointer<PyInternalFunction>),
+    InternalFlag(PyPointer<PyFlag>),
     // Additional types as needed
 }
 
 impl PyObject {
-    pub fn get_class(&self) -> Option<Arc<PyClass>> {
+    pub fn get_class(&self) -> PyPointer<PyClass> {
         match self {
-            PyObject::Instance(py_instance) => Some(py_instance.class.clone()),
-            PyObject::Int(_) => Some(py_int.clone()),
+            PyObject::Instance(py_instance) => py_instance.borrow().class.clone(),
+            PyObject::Int(_) => PyPointer::new(py_int),  // TODO try to avoid making new pointer
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
             PyObject::Bool(_) => {todo!()}
@@ -143,27 +196,16 @@ impl PyObject {
         }
     }
 
-    pub fn set_attribute(&mut self, name: String, value: Arc<PyObject>)  {
+    pub fn set_attribute(&mut self, name: String, value: PyPointer<PyObject>)  {
         match self {
             PyObject::Instance(instance) => {
-                // let attr = instance.get_field(&name);
-                // 
-                // if attr.is_some() {
-                //     return attr;
-                // }
-                let succeeded = instance.set_field(name.clone(), value.clone());
-                // TODO repace Arc with something that is reference counted cloned and can be borrowed mutably maybe either Rc<RefCell<T>> or Arc<Mutex<T>> or Rc<Box<T>>
-                if !succeeded {
-                    panic!("Failed to set attribute {} of instance", name);
-                }
-
-                // instance.class.clone().search_for_attribute(name)
+                instance.borrow_mut().set_field(name.clone(), value.clone());
             }
             _ => panic!("Cannot set {} of an object that is a {:?}", name, self), // TODO make python error
         }
     }
 
-    pub fn get_attribute(&self, name: String) -> Option<Arc<PyObject>> {
+    pub fn get_attribute(&self, name: String) -> Option<PyPointer<PyObject>> {
         match self {
             PyObject::Int(_value) => {py_int.search_for_attribute(name)}
             PyObject::Float(_) => {todo!()}
@@ -171,13 +213,13 @@ impl PyObject {
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                let attr = instance.get_field(&name);
+                let attr = instance.borrow().get_field(&name);
                 
                 if attr.is_some() {
                     return attr;
                 }
 
-                instance.class.clone().search_for_attribute(name)
+                instance.borrow().class.clone().borrow().search_for_attribute(name)
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -197,32 +239,47 @@ impl PyObject {
     pub fn is_flag_type(&self, flag: PyFlag) -> bool {
         match self {
             PyObject::InternalFlag(flag_type) => {
-                let self_descrim = (**flag_type).clone() as isize;
+                let self_descrim = *flag_type.borrow().clone() as isize;
                 let other_descrim = flag as isize;
-                
+
                 self_descrim == other_descrim
             },
             _ => false,
         }
     }
-    
+
     pub fn is_not_flag(&self) -> bool {
         match self {
             PyObject::InternalFlag(_) => false,
             _ => true,
         }
     }
+    
+    pub fn expect_internal_slot(&self) -> PyPointer<PyInternalFunction> {
+        match self {
+            PyObject::InternalSlot(slot) => slot.clone(),
+            _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
 }
 
+pub type NewFuncType = fn(PyPointer<PyClass>, Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
+pub type InitFuncType = fn(PyPointer<PyObject>, Vec<PyPointer<PyObject>>) -> ();
+pub type UnaryFuncType = fn(PyPointer<PyObject>) -> PyPointer<PyObject>;
+pub type BivariateFuncType = fn(PyPointer<PyObject>, PyPointer<PyObject>) -> PyPointer<PyObject>;
+pub type VariadicFuncType = fn(PyPointer<PyObject>, Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
+pub type ManyArgFuncType = fn(Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
 
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PyInternalFunction {
-    NoArgs(fn() -> Arc<PyObject>),
-    OneArg(fn(Arc<PyObject>) -> Arc<PyObject>),
-    TwoArgs(fn(Arc<PyObject>, Arc<PyObject>) -> Arc<PyObject>),
-    ThreeArgs(fn(Arc<PyObject>, Arc<PyObject>, Arc<PyObject>) -> Arc<PyObject>),
-    ManyArgs(fn(Vec<Arc<PyObject>>) -> Arc<PyObject>),
+    NewFunc(&'static NewFuncType),
+    InitFunc(&'static InitFuncType),
+    
+    UnaryFunc(&'static UnaryFuncType),
+    BivariateFunc(&'static BivariateFuncType),
+    VariadicFunc(&'static VariadicFuncType),
+    
+    ManyArgFunc(&'static ManyArgFuncType),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -235,54 +292,30 @@ pub enum PyFlag {
 
 
 #[derive(Debug)]
-pub struct PyObjectPointer {
-    inner: Rc<RefCell<Box<PyObject>>>
+pub struct PyPointer<T> {
+    inner: Rc<RefCell<Box<T>>>
 }
 
-impl PyObjectPointer {
-    pub fn new(inner: PyObject) -> Self {
-        PyObjectPointer {
-            inner: Rc::new(RefCell::new(Box::new(inner)))
-        }
-    }
-
-    // pub fn get_class(&self) -> Option<PyObjectPointer> {
-    //     // self.inner.clone()
-    //     let inner_class = self.inner.borrow().get_class()?;
-    //     
-    // }
-}
-
-impl Clone for PyObjectPointer {
+impl<T> Clone for PyPointer<T> {
     fn clone(&self) -> Self {
-        PyObjectPointer {
+        PyPointer {
             inner: self.inner.clone()
         }
     }
 }
 
-impl Deref for PyObjectPointer {
-    type Target = RefCell<Box<PyObject>>;
+impl<T> PyPointer<T> {
+    pub fn new(value: T) -> Self {
+        PyPointer {
+            inner: Rc::new(RefCell::new(Box::new(value))),
+        }
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+    pub fn borrow(&self) -> Ref<Box<T>> {
+        self.inner.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<Box<T>> {
+        self.inner.borrow_mut()
     }
 }
-
-// DerefMut is optional and depends on whether you need mutable access via methods
-// impl DerefMut for PyObjectPointer {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.inner
-//     }
-// }
-
-// impl Deref for PyObjectPointer {
-//     type Target = PyObject;
-// 
-//     // fn deref(&self) -> &Self::Target {
-//     //     let borrowed = self.inner.clone().borrow();
-//     //     let x = &*borrowed;
-//     //     x
-//     //     
-//     // }
-// }
