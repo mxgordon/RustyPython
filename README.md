@@ -22,9 +22,21 @@ cargo build --release
 Currently, this is looking about 15x slower than CPython. This is not good, but it is a start. But only 2x slower than RustPython. This is a good sign.
 
 ## Tests
+
 Currently working on developing a testing suite. I copied some of the simpler tests from the RustPython repo into `/tests/from_rustpython` and am working on getting them to pass.
 
-As for my tests, they all pass, but they're very simple.
+For the tests I have written, they are mostly testing the existence and correct implementation of various basic features rather than edge cases yet.
+Once the `assert` and method definition is added, more sophisticated tests will be written. However, for now this is the state of the testing system.
+
+| Test Name   | Status | Notes                              |
+|-------------|--------|------------------------------------|
+| test_object | ✔️ |                                    |
+| test_simple | ✔️ | should include more int operations |
+| test_addition | ✔️ | working on optimization            |
+| test_primatives | ❌ | need to add all the primatives     |
+| test_control_flow | ❌ | need to add while & if             |
+| test_tuple | ❌ | need tuples and tuple unpacking    |
+
 
 ## Supported Features
 
