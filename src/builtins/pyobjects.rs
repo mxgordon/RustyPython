@@ -30,41 +30,41 @@ pub enum PyClass {
     Internal {
         name_func: fn() -> String,  // immutable string crate
         super_classes_func: fn() -> Vec<PyPointer<PyClass>>,
-        
+
         // --- internal functions ---
         // Instantiating functions
         __new__: Option<PyInternalFunction>,
         __init__: Option<PyInternalFunction>,
-        
+
         // String functions
         __str__: Option<PyInternalFunction>,
         __repr__: Option<PyInternalFunction>,
-        
+
         // Math functions
         __add__: Option<PyInternalFunction>,
         __pow__: Option<PyInternalFunction>,
-        
+
         // Iterating functions
         __iter__: Option<PyInternalFunction>,
         __next__: Option<PyInternalFunction>,
     },
 }
 
-impl PyClass {    
+impl PyClass {
     pub fn get_name(&self) -> String {
         match self {
             PyClass::UserDefined { name, .. } => name.clone(),
             PyClass::Internal { name_func, .. } => name_func(),
         }
     }
-    
+
     pub fn get_super_classes(&self) -> Vec<PyPointer<PyClass>> {
         match self {
             PyClass::UserDefined { super_classes, .. } => super_classes.clone(),
             PyClass::Internal { super_classes_func, .. } => super_classes_func(),
         }
     }
-    
+
     pub fn defines_attribute(&self, name_str: String) -> bool {
         match self {
             PyClass::UserDefined { attributes, .. } => attributes.contains_key(&name_str),
@@ -81,25 +81,25 @@ impl PyClass {
                 if attr.is_some() {
                     return attr.cloned();
                 }
-                
+
                 None
             },
-            PyClass::Internal { __new__, __init__, __str__, __repr__, __add__, __pow__, name_func, super_classes_func, __iter__, __next__ } => { 
-                let search = match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).clone(); 
-                
+            PyClass::Internal { __new__, __init__, __str__, __repr__, __add__, __pow__, name_func, super_classes_func, __iter__, __next__ } => {
+                let search = match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).clone();
+
                 if let Some(func) = search {
                     return Some(PyPointer::new(PyObject::InternalSlot(PyPointer::new(func))));
                 }
-                
+
                 None
             }
 
         };
-        
+
         if search_result.is_none() {
             for base_class in self.get_super_classes() {
                 let attr = base_class.borrow().search_for_attribute(name_str.clone());
-            
+
                 if attr.is_some() {
                     return attr.clone();
                 }
@@ -160,7 +160,7 @@ impl PyInstance {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PyObject {
     Int(i64),
     Float(f64),
@@ -254,7 +254,7 @@ impl PyObject {
             _ => true,
         }
     }
-    
+
     pub fn expect_internal_slot(&self) -> PyPointer<PyInternalFunction> {
         match self {
             PyObject::InternalSlot(slot) => slot.clone(),
@@ -274,11 +274,11 @@ pub type ManyArgFuncType = fn(Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
 pub enum PyInternalFunction {
     NewFunc(&'static NewFuncType),
     InitFunc(&'static InitFuncType),
-    
+
     UnaryFunc(&'static UnaryFuncType),
     BivariateFunc(&'static BivariateFuncType),
     VariadicFunc(&'static VariadicFuncType),
-    
+
     ManyArgFunc(&'static ManyArgFuncType),
 }
 

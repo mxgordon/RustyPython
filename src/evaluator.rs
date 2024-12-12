@@ -94,11 +94,11 @@ fn eval_defn(define: &Define, arena: &mut PyArena) {
         Define::PlusEq(var_name, expr) => {
             let other = eval_expr(expr, arena);
             let variable = eval_var(var_name, arena);
-            
+
             let add_func = variable.borrow().get_attribute("__add__".to_string()).unwrap_or_else(|| panic!("Object has no __add__ method"));  // TODO Make python error
-            
+
             let result = call_function(add_func, vec![variable, other], arena);
-            
+
             arena.set(var_name.clone(), result);
         }
         Define::MinusEq(_, _) => {todo!()}
@@ -117,10 +117,16 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
     
     let next_func = iterator.borrow().get_attribute("__next__".to_string()).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
     
-    let mut next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
-    
+    let next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
+
+    arena.set(var.to_string(), next_val.clone());
+    // let iterator_var_entry = arena.get_entry(var.to_string());
+    // let mut occupied_var_entry = iterator_var_entry.insert_entry(next_val.clone());
+
     while !next_val.borrow().is_flag_type(PyFlag::StopIteration) {
-        arena.set(var.to_string(), next_val.clone());
+        // occupied_var_entry.insert(next_val.clone());
+        // let mut iterator_var_entry = arena.get_entry(var.to_string()).or_insert(next_val.clone());
+        // *iterator_var_entry = next_val.clone();
 
         let code_result = eval_code_block(code.clone(), arena);
 
@@ -142,8 +148,11 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
             }
         }
 
-
-        next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
+        let mut next_ptr = next_val.borrow_mut(); // assigns next var without doing a hasmap lookup TODO make this keep the same PyPointer
+        let next_value = call_function(next_func.clone(), vec![iterator.clone()], arena).borrow().clone();
+        
+        *next_ptr = next_value;
+        
     };
     arena.remove(var).unwrap_or_else(|| panic!("Variable {} not found", var)); // TODO Make python error
 

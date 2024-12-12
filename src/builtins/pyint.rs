@@ -3,9 +3,9 @@ use crate::builtins::object::{py_object};
 use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{BivariateFunc, InitFunc, NewFunc, UnaryFunc};
 
-pub fn expect_int(pyobj: PyPointer<PyObject>) -> i64 {  // TODO This lowkey might end up constantly referencing a new pointer to the i64
+pub fn expect_int(pyobj: PyPointer<PyObject>) -> i64 {
     match **pyobj.borrow() {
-        PyObject::Int(value) => value.clone(),
+        PyObject::Int(value) => value,
         _ => panic!("Expected int"),
     }
 }
