@@ -33,7 +33,7 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 | test_object | ✔️ |                                    |
 | test_simple | ✔️ | should include more int operations |
 | test_addition | ✔️ | working on optimization            |
-| test_primatives | ❌ | need to add all the primatives     |
+| test_primatives | 🚧 | need to add all the primatives     |
 | test_control_flow | ❌ | need to add while & if             |
 | test_tuple | ❌ | need tuples and tuple unpacking    |
 

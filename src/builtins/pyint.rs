@@ -55,14 +55,16 @@ pub fn int__repr__(pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
 pub const py_int: PyClass = PyClass::Internal {
     name_func: || "int".to_string(),
     super_classes_func: || vec![PyPointer::new(py_object)],
-    __new__: Some(NewFunc(&(int__new__ as NewFuncType))),
-    __init__: Some(InitFunc(&(int__init__ as InitFuncType))),
-    __str__: None,
-    __repr__: Some(UnaryFunc(&(int__repr__ as UnaryFuncType))),
-    __add__: Some(BivariateFunc(&(int__add__ as BivariateFuncType))),
-    __pow__: Some(BivariateFunc(&(int__pow__ as BivariateFuncType))),
-
-    __iter__: None,
-    __next__: None,
+    
+    methods: PyMagicMethods {
+        __new__: Some(NewFunc(&(int__new__ as NewFuncType))),
+        __init__: Some(InitFunc(&(int__init__ as InitFuncType))),
+        
+        __repr__: Some(UnaryFunc(&(int__repr__ as UnaryFuncType))),
+        __add__: Some(BivariateFunc(&(int__add__ as BivariateFuncType))),
+        __pow__: Some(BivariateFunc(&(int__pow__ as BivariateFuncType))),
+        
+        ..py_magic_methods_defaults()
+    }
 };
 

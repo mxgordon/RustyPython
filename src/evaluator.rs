@@ -79,6 +79,7 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> PyPointer<PyObject> {
         Expr::Divide(_first, _second) => {todo!()}
         Expr::Plus(first, second) => call_function_of_pyobj_with_args("__add__".to_string(), first, vec![second], arena),
         Expr::Minus(_first, _second) => {todo!()}
+        Expr::Comparison(_first, _comp, _second) => {todo!()}
         Expr::Pow(first, second) => call_function_of_pyobj_with_args("__pow__".to_string(), first, vec![second], arena),
         Expr::FunCall(name, args) => eval_fun_call(name, args.clone(), arena)
     }

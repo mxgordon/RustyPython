@@ -41,15 +41,15 @@ pub fn object__str__(pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {  // b
 pub const py_object: PyClass = PyClass::Internal {
     name_func: || "object".to_string(), 
     super_classes_func: || vec![],
-    __new__: Some(NewFunc(&(object__new__ as NewFuncType))),
-    __init__: Some(InitFunc(&(object__init__ as InitFuncType))),
-    
-    __str__: Some(UnaryFunc(&(object__str__ as UnaryFuncType))),
-    __repr__: Some(UnaryFunc(&(object__repr__ as UnaryFuncType))),
-    
-    __add__: None,
-    __pow__: None,
+    methods: PyMagicMethods {
 
-    __iter__: None,
-    __next__: None,
+        __new__: Some(NewFunc(&(object__new__ as NewFuncType))),
+        __init__: Some(InitFunc(&(object__init__ as InitFuncType))),
+
+        __str__: Some(UnaryFunc(&(object__str__ as UnaryFuncType))),
+        __repr__: Some(UnaryFunc(&(object__repr__ as UnaryFuncType))),
+
+        ..py_magic_methods_defaults()
+        
+    }
 };

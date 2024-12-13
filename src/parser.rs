@@ -10,6 +10,20 @@ pub enum Value {
 }
 
 #[derive(Clone, Debug)]
+pub enum Comparitor {
+    Equal,
+    NotEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    Is,
+    IsNot,
+    In,
+    NotIn,
+}
+
+#[derive(Clone, Debug)]
 pub enum Expr {
     Var(String),
     Val(Value),
@@ -19,6 +33,7 @@ pub enum Expr {
     Minus(Box<Expr>,Box<Expr>),
     Pow(Box<Expr>,Box<Expr>),
     FunCall(Box<Expr>, Vec<Expr>),
+    Comparison(Box<Expr>, Comparitor, Box<Expr>),
 }
 
 #[derive(Clone, Debug)]
@@ -65,19 +80,36 @@ peg::parser!{
 
         pub rule float() -> f64 = n:$("-"? ['0'..='9']* "." ['0'..='9']+) {n.parse().unwrap()} / n:$("-"? ['0'..='9']+ "." ['0'..='9']*) {n.parse().unwrap()}
         pub rule integer() -> i64 = n:$("-"? ['0'..='9']+) {n.parse().unwrap()}
-        pub rule string() -> String = "\"" s:$([_]*) "\"" {s.to_string()}  // TODO make string match correct
+        pub rule string() -> String = "\"" s:$([^('\n' | '"')]*) "\"" {s.to_string()}  // TODO make string match correct
         pub rule boolean() -> bool = $"True" {true} / $"False" {false}
         pub rule none() -> Value = "None" {Value::None}
 
         pub rule val() -> Value = f:float() {Value::Float(f)} / i:integer() {Value::Integer(i)} / s:string() {Value::String(s)} / b:boolean() {Value::Boolean(b)} / n:none() {n}
 
         pub rule expr() -> Expr = precedence!{
+            // logical or
+            // logical and
+            // logical not
+            // comparisons ==, !=, >, >=, <, <=, is, is not, in, not in
+            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
+            l:(@) sp() "!=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::NotEqual, Box::new(r))}
+            l:(@) sp() ">=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::GreaterThanOrEqual, Box::new(r))}
+            l:(@) sp() "<=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::LessThanOrEqual, Box::new(r))}
+            l:(@) sp() ">" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::GreaterThan, Box::new(r))}
+            l:(@) sp() "<" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::LessThan, Box::new(r))}
+            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
+            l:(@) sp1() "is" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::Is, Box::new(r))}
+            -- 
+            // bitwise |
+            // bitwise ^
+            // bitwise &
+            // Bitwise shifts here
             l:(@) sp() "+" sp() r:@ {Expr::Plus(Box::new(l), Box::new(r))}
             l:(@) sp() "-" sp() r:@ {Expr::Minus(Box::new(l), Box::new(r))}
             --
-            l:(@) sp() "*" sp() r:@ {Expr::Times(Box::new(l), Box::new(r))}
+            l:(@) sp() "*" sp() r:@ {Expr::Times(Box::new(l), Box::new(r))}  // include @, //, and %
             l:(@) sp() "/" sp() r:@ {Expr::Divide(Box::new(l), Box::new(r))}
-            --
+            -- // Unary ops here
             l:@ sp() "**" sp() r:(@) {Expr::Pow(Box::new(l), Box::new(r))}
             --
             v:val() {Expr::Val(v)}

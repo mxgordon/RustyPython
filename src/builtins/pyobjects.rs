@@ -21,6 +21,39 @@ macro_rules! match_magic_funcs {
 }
 
 #[derive(Debug)]
+pub struct PyMagicMethods {
+    // --- internal functions ---
+    // Instantiating functions
+    pub __new__: Option<PyInternalFunction>,
+    pub __init__: Option<PyInternalFunction>,
+
+    // String functions
+    pub __str__: Option<PyInternalFunction>,
+    pub __repr__: Option<PyInternalFunction>,
+
+    // Math functions
+    pub __add__: Option<PyInternalFunction>,
+    pub __pow__: Option<PyInternalFunction>,
+
+    // Iterating functions
+    pub __iter__: Option<PyInternalFunction>,
+    pub __next__: Option<PyInternalFunction>,
+}
+
+pub const fn py_magic_methods_defaults() -> PyMagicMethods {
+    PyMagicMethods {
+        __new__: None,
+        __init__: None,
+        __str__: None,
+        __repr__: None,
+        __add__: None,
+        __pow__: None,
+        __iter__: None,
+        __next__: None,
+    }
+}
+
+#[derive(Debug)]
 pub enum PyClass {
     UserDefined {
         name: String,
@@ -30,23 +63,7 @@ pub enum PyClass {
     Internal {
         name_func: fn() -> String,  // immutable string crate
         super_classes_func: fn() -> Vec<PyPointer<PyClass>>,
-
-        // --- internal functions ---
-        // Instantiating functions
-        __new__: Option<PyInternalFunction>,
-        __init__: Option<PyInternalFunction>,
-
-        // String functions
-        __str__: Option<PyInternalFunction>,
-        __repr__: Option<PyInternalFunction>,
-
-        // Math functions
-        __add__: Option<PyInternalFunction>,
-        __pow__: Option<PyInternalFunction>,
-
-        // Iterating functions
-        __iter__: Option<PyInternalFunction>,
-        __next__: Option<PyInternalFunction>,
+        methods: PyMagicMethods
     },
 }
 
@@ -69,7 +86,7 @@ impl PyClass {
         match self {
             PyClass::UserDefined { attributes, .. } => attributes.contains_key(&name_str),
             PyClass::Internal {
-                name_func, super_classes_func, __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__
+                methods: PyMagicMethods { __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__ }, name_func, super_classes_func,
             } => match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).is_some()
         }
     }
@@ -84,7 +101,8 @@ impl PyClass {
 
                 None
             },
-            PyClass::Internal { __new__, __init__, __str__, __repr__, __add__, __pow__, name_func, super_classes_func, __iter__, __next__ } => {
+            
+            PyClass::Internal { methods: PyMagicMethods {__new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__}, name_func, super_classes_func } => {
                 let search = match_magic_funcs!(name_str.as_str(), __new__, __init__, __str__, __repr__, __add__, __pow__, __iter__, __next__).clone();
 
                 if let Some(func) = search {

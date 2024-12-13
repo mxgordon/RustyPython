@@ -1,7 +1,7 @@
 use crate::builtins::function_utils::init_internal_class;
 use crate::builtins::object::{py_object};
 use crate::builtins::pyint::expect_int;
-use crate::builtins::pyobjects::{InitFuncType, PyClass, PyFlag, PyObject, PyPointer, UnaryFuncType};
+use crate::builtins::pyobjects::{py_magic_methods_defaults, InitFuncType, PyClass, PyFlag, PyMagicMethods, PyObject, PyPointer, UnaryFuncType};
 use crate::builtins::pyobjects::PyInternalFunction::{InitFunc, UnaryFunc};
 
 pub fn range__init__(pyself: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>) {
@@ -54,17 +54,15 @@ pub fn range__iter__(pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
 pub const py_range: PyClass = PyClass::Internal {
     name_func: || "range".to_string(),
     super_classes_func: || vec![PyPointer::new(py_object)],
-    __new__: None,
-    __init__: Some(InitFunc(&(range__init__ as InitFuncType))),
+    methods: PyMagicMethods {
+        __init__: Some(InitFunc(&(range__init__ as InitFuncType))),
+        
+        __repr__: Some(UnaryFunc(&(range__repr__ as UnaryFuncType))),
 
-    __str__: None,
-    __repr__: Some(UnaryFunc(&(range__repr__ as UnaryFuncType))),
-
-    __add__: None,
-    __pow__: None,
-
-    __iter__: Some(UnaryFunc(&(range__iter__ as UnaryFuncType))),
-    __next__: None,
+        __iter__: Some(UnaryFunc(&(range__iter__ as UnaryFuncType))),
+        
+        ..py_magic_methods_defaults()
+    }
 };
 
 pub fn range_iterator__init__(pyself: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>) {
@@ -105,15 +103,9 @@ pub fn range_iterator__next__(pyself: PyPointer<PyObject>) -> PyPointer<PyObject
 pub const py_range_iterator: PyClass = PyClass::Internal {  // Hidden class
     name_func: || "range_iterator".to_string(),
     super_classes_func: || vec![PyPointer::new(py_object)],
-    __new__: None,
-    __init__: Some(InitFunc(&(range_iterator__init__ as InitFuncType))),
-
-    __str__: None,
-    __repr__: None,
-
-    __add__: None,
-    __pow__: None,
-
-    __iter__: None,
-    __next__: Some(UnaryFunc(&(range_iterator__next__ as UnaryFuncType))),
+    methods: PyMagicMethods {
+        __init__: Some(InitFunc(&(range_iterator__init__ as InitFuncType))),
+        __next__: Some(UnaryFunc(&(range_iterator__next__ as UnaryFuncType))),
+        ..py_magic_methods_defaults()
+    }
 };
