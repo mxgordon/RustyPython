@@ -16,22 +16,22 @@ fn eval_var(name: &str, arena: &PyArena) -> PyPointer<PyObject> {
         panic!("Variable {} not found", name); // TODO Make python error
     }
 
-    var.unwrap().clone()
+    var.unwrap()
 }
 
 fn eval_val(value: &Value) -> PyPointer<PyObject> {
     match value {
         Value::Integer(value) => {
-            PyPointer::new(PyObject::Int(value.clone()))
+            PyPointer::new(PyObject::Int(*value))
         }
         Value::Float(value) => {
-            PyPointer::new(PyObject::Float(value.clone()))
+            PyPointer::new(PyObject::Float(*value))
         }
         Value::String(value) => {
             PyPointer::new(PyObject::Str(value.clone()))
         }
         Value::Boolean(value) => {
-            PyPointer::new(PyObject::Bool(value.clone()))
+            PyPointer::new(PyObject::Bool(*value))
         }
         Value::None => {
             PyPointer::new(PyObject::None)
@@ -132,14 +132,8 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
     let next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
 
     arena.set(var.to_string(), next_val.clone());
-    // let iterator_var_entry = arena.get_entry(var.to_string());
-    // let mut occupied_var_entry = iterator_var_entry.insert_entry(next_val.clone());
 
     while !next_val.borrow().is_flag_type(PyFlag::StopIteration) {
-        // occupied_var_entry.insert(next_val.clone());
-        // let mut iterator_var_entry = arena.get_entry(var.to_string()).or_insert(next_val.clone());
-        // *iterator_var_entry = next_val.clone();
-
         let code_result = eval_code_block(code, arena);
 
         if let Some(code_rtn) = code_result {
@@ -160,7 +154,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
             }
         }
 
-        let mut next_ptr = next_val.borrow_mut(); // assigns next var without doing a hasmap lookup TODO make this keep the same PyPointer
+        let mut next_ptr = next_val.borrow_mut(); // assigns next var without doing a hashmap lookup TODO make this keep the same PyPointer
         let next_value = call_function(next_func.clone(), vec![iterator.clone()], arena).borrow().clone();
         
         *next_ptr = next_value;

@@ -1,4 +1,3 @@
-use std::collections::hash_map::{Entry, OccupiedEntry};
 use std::collections::HashMap;
 use crate::builtins::globals::Globals;
 use crate::builtins::pyobjects::{PyObject, PyPointer};

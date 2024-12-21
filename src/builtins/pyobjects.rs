@@ -9,18 +9,6 @@ use strum_macros::EnumIter;
 use crate::parser::CodeBlock;
 use crate::pyarena::PyArena;
 
-// type Rc<T> = Arc<T>;
-macro_rules! match_magic_funcs {
-    ($name_str:expr, $($name:ident),*) => {
-            match $name_str {
-                $(
-                    stringify!($name) => $name,
-                )*
-                _ => &None,
-            }
-    };
-}
-
 #[derive(Clone, Debug, EnumIter)]
 pub enum PyMagicMethod {
     New,
@@ -208,12 +196,11 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
     
     pub fn get_super_magic_methods(&self) -> Vec<(PyMagicMethod, PyInternalFunction)> {
         let mut methods_to_set = Vec::new();
-        if let PyClass::Internal { methods, .. } = self {
+        if let PyClass::Internal { .. } = self {
             for magic_method_type in PyMagicMethod::iter() {
                 if self.defines_attribute(magic_method_type.clone()) {
                     continue;
                 }
-
 
                 if let Some(super_method) = self.search_for_attribute_internal(magic_method_type.clone()) {
                     methods_to_set.push((magic_method_type, super_method.borrow().clone()));
@@ -276,7 +263,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
 
     pub fn search_for_attribute(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyObject>> {
         let search_result: Option<PyPointer<PyObject>> = match self {
-            PyClass::UserDefined { attributes, super_classes, .. } => {
+            PyClass::UserDefined { attributes, .. } => {
                 let attr = attributes.get(&magic_method.to_string());
                 if attr.is_some() {
                     return attr.cloned();
@@ -322,7 +309,6 @@ impl PyException {
     }
 }
 
-
 #[derive(Debug)]
 pub struct PyFunction {
     name: String,
@@ -334,6 +320,8 @@ pub struct PyFunction {
 pub struct PyInstance {
     class: PyPointer<PyClass>,
     attributes: RwLock<HashMap<String, PyPointer<PyObject>>>,
+    pub internal_storage: Vec<PyObject>
+    
 }
 
 impl PyInstance {
@@ -341,6 +329,7 @@ impl PyInstance {
         PyInstance {
             class: py_class,
             attributes: RwLock::new(HashMap::new()),
+            internal_storage: vec![]
         }
     }
 
@@ -465,6 +454,12 @@ impl PyObject {
     pub fn expect_internal_slot(&self) -> PyPointer<PyInternalFunction> {
         match self {
             PyObject::InternalSlot(slot) => slot.clone(),
+            _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
+    pub fn expect_instance(&self) -> PyPointer<PyInstance> {
+        match self {
+            PyObject::Instance(instance) => instance.clone(),
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }

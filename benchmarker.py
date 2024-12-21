@@ -29,16 +29,17 @@ def benchmark_rspy():
 
 
 """
-RustPython: 3.308255s
-RustyPython: 5.261442s
-Python: 0.425162s
-Speedup: 0.08x
+RustPython: 2.809106s
+RustyPython: 1.787605s
+CPython: 0.382912s
+Speedup: 0.21x
 
 flamegraph samples: 46,512
 flamegraph samples: 38,965
 flamegraph samples: 33,060
 flamegraph samples: 26,436
 flamegraph samples: 24,913
+flamegraph samples: 16,219
 """
 
 if __name__ == '__main__':
@@ -48,5 +49,5 @@ if __name__ == '__main__':
 
     print(f"RustPython: {rsp_time}s")
     print(f"RustyPython: {rs_time}s")
-    print(f"Python: {py_time}s")
+    print(f"CPython: {py_time}s")
     print(f"Speedup: {py_time / rs_time:.2f}x")

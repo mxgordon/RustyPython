@@ -3,18 +3,18 @@ use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{BivariateFunc, InitFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
-pub fn expect_int(pyobj: PyPointer<PyObject>) -> i64 {
-    match *pyobj.borrow() {
+pub fn expect_int(pyobj: PyObject) -> i64 {
+    match pyobj {
         PyObject::Int(value) => value,
         ref value => panic!("Expected int, got {:?}", value),
     }
 }
 
-pub fn expect_set_int(pyobj: PyPointer<PyObject>, new_value: i64){
+pub fn expect_int_ptr(pyobj: PyPointer<PyObject>) -> i64 {
     match *pyobj.borrow() {
-        PyObject::Int(value) => {value + new_value},
-        _ => panic!("Expected int"),
-    };
+        PyObject::Int(value) => value,
+        ref value => panic!("Expected int, got {:?}", value),
+    }
 }
 
 pub fn int__new__(_arena: &mut PyArena, _pyclass: PyPointer<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {  // error handling
@@ -35,21 +35,21 @@ pub fn int__init__(_arena: &mut PyArena, _pyself: PyPointer<PyObject>, _pyargs: 
 }
 
 pub fn int__add__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, other: PyPointer<PyObject>) -> PyPointer<PyObject> {
-    let self_value = expect_int(pyself);
-    let other_value = expect_int(other);  // TODO make this work for other types (float)
+    let self_value = expect_int_ptr(pyself);
+    let other_value = expect_int_ptr(other);  // TODO make this work for other types (float)
     
     PyPointer::new(PyObject::Int(self_value + other_value))
 }
 
 pub fn int__pow__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, other: PyPointer<PyObject>) -> PyPointer<PyObject> {
-    let self_value = expect_int(pyself);
-    let other_value = expect_int(other);  // TODO make this work for other types (float)
+    let self_value = expect_int_ptr(pyself);
+    let other_value = expect_int_ptr(other);  // TODO make this work for other types (float)
 
     PyPointer::new(PyObject::Int(self_value.pow(other_value as u32)))
 }
 
 pub fn int__repr__(_arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
-    let value = expect_int(pyself);
+    let value = expect_int_ptr(pyself);
     PyPointer::new(PyObject::Str(value.to_string()))
 }
 pub fn get_int_class(object_class: PyPointer<PyClass>) -> PyClass {

@@ -19,7 +19,7 @@ cargo build --release
 
 ## Speed
 
-Currently, this is looking about 15x slower than CPython. This is not good, but it is a start. But only 2x slower than RustPython. This is a good sign.
+Currently, this is looking about 5x slower than CPython. This is not so bad, heading in the right direction. However, it is not 50% faster than RustPython. This is a good sign.
 
 ## Tests
 
@@ -32,7 +32,7 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 |-------------|--------|------------------------------------|
 | test_object | ✔️ |                                    |
 | test_simple | ✔️ | should include more int operations |
-| test_addition | ✔️ | working on optimization            |
+| test_addition | ✔️ | optimized 😎                         |
 | test_primatives | 🚧 | need to add all the primatives     |
 | test_control_flow | ❌ | need to add while & if             |
 | test_tuple | ❌ | need tuples and tuple unpacking    |

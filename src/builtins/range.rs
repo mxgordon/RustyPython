@@ -1,15 +1,20 @@
 use once_cell::sync::Lazy;
 use crate::builtins::function_utils::init_internal_class;
-use crate::builtins::pyint::expect_int;
+use crate::builtins::pyint::{expect_int, expect_int_ptr};
 use crate::builtins::pyobjects::{py_magic_methods_defaults, InitFuncType, PyClass, PyFlag, PyMagicMethods, PyObject, PyPointer, UnaryFuncType};
 use crate::builtins::pyobjects::PyInternalFunction::{InitFunc, UnaryFunc};
 
 use crate::pyarena::PyArena;
 pub static CURRENT_STRING: Lazy<String> = Lazy::new(|| "current".to_string());
 
+pub const START_IDX: usize = 0;
+pub const STOP_IDX: usize = 1;
+pub const STEP_IDX: usize = 2;
+pub const CURRENT_IDX: usize = 3;
+
 
 pub fn range__init__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>) {
-    let first = expect_int(args.get(0).unwrap_or_else(|| panic!("Expected at least one arguments to __init__, received zero")).clone());
+    let first = expect_int_ptr(args.get(0).unwrap_or_else(|| panic!("Expected at least one arguments to __init__, received zero")).clone());
     let second = args.get(1);
     let third = args.get(2);
     
@@ -19,10 +24,10 @@ pub fn range__init__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, args: Ve
 
     if let Some(second) = second {
         start = first;
-        stop = expect_int(second.clone());
+        stop = expect_int_ptr(second.clone());
 
         if let Some(third) = third {
-            step = expect_int(third.clone());
+            step = expect_int_ptr(third.clone());
         }
     } else {
         stop = first;
@@ -38,9 +43,9 @@ pub fn range__init__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, args: Ve
 
 pub fn range__repr__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let pyself_borrow = pyself.borrow();
-    let start = expect_int(pyself_borrow.get_attribute("start", arena).unwrap());
-    let stop = expect_int(pyself_borrow.get_attribute("stop", arena).unwrap());
-    let step = expect_int(pyself_borrow.get_attribute("step", arena).unwrap());
+    let start = expect_int_ptr(pyself_borrow.get_attribute("start", arena).unwrap());
+    let stop = expect_int_ptr(pyself_borrow.get_attribute("stop", arena).unwrap());
+    let step = expect_int_ptr(pyself_borrow.get_attribute("step", arena).unwrap());
     
     if step == 1 {
         return PyPointer::new(PyObject::Str(format!("range({}, {})", start, stop)));
@@ -71,27 +76,34 @@ pub fn get_range_class(object_class: PyPointer<PyClass>) -> PyClass {
 pub fn range_iterator__init__(arena: &mut PyArena, pyself: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>) {
     let range_obj = args.get(0).unwrap_or_else(|| panic!("Expected one argument to __init__, received zero"));
     assert_eq!(args.len(), 1);
+
+
     
     let range_obj = range_obj.borrow(); // TODO assert range type
-    
-    let start = expect_int(range_obj.get_attribute("start", arena).unwrap());  // Copy by value
-    let stop = expect_int(range_obj.get_attribute("stop", arena).unwrap());
-    let step = expect_int(range_obj.get_attribute("step", arena).unwrap());
 
-    let mut pyself_mut = pyself.borrow_mut();
-    
-    pyself_mut.set_attribute(&"start".to_string(), PyPointer::new(PyObject::Int(start)));  // insert values
-    pyself_mut.set_attribute(&"stop".to_string(), PyPointer::new(PyObject::Int(stop)));
-    pyself_mut.set_attribute(&"step".to_string(), PyPointer::new(PyObject::Int(step)));
-    pyself_mut.set_attribute(&*CURRENT_STRING, PyPointer::new(PyObject::Int(start)));
+    let start = expect_int_ptr(range_obj.get_attribute("start", arena).unwrap());  // Copy by value
+    let stop = expect_int_ptr(range_obj.get_attribute("stop", arena).unwrap());
+    let step = expect_int_ptr(range_obj.get_attribute("step", arena).unwrap());
+
+
+    let pyself = pyself.borrow();
+    let instance_ptr = pyself.expect_instance();
+    let mut instance = instance_ptr.borrow_mut();
+
+    instance.internal_storage.insert(START_IDX, PyObject::Int(start));
+    instance.internal_storage.insert(STOP_IDX, PyObject::Int(stop));
+    instance.internal_storage.insert(STEP_IDX, PyObject::Int(step));
+    instance.internal_storage.insert(CURRENT_IDX, PyObject::Int(start));
 }
 
 pub fn range_iterator__next__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let mut pyself_mut = pyself.borrow_mut();
-    let mut current = expect_int(pyself_mut.get_attribute("current", arena).unwrap());
-    let stop = expect_int(pyself_mut.get_attribute("stop", arena).unwrap());
-    let step = expect_int(pyself_mut.get_attribute("step", arena).unwrap());
-    // let step = 1;
+    let instance_ptr = pyself_mut.expect_instance();
+    let mut instance = instance_ptr.borrow_mut();
+
+    let mut current = expect_int(instance.internal_storage.get(CURRENT_IDX).unwrap().clone());
+    let stop = expect_int(instance.internal_storage.get(STOP_IDX).unwrap().clone());
+    let step = expect_int(instance.internal_storage.get(STEP_IDX).unwrap().clone());
     
     current += step;
     
@@ -99,7 +111,12 @@ pub fn range_iterator__next__(arena: &mut PyArena, pyself: PyPointer<PyObject>) 
         return PyPointer::new(PyObject::InternalFlag(PyPointer::new(PyFlag::StopIteration)));  // StopIteration TODO remove internal pypointer
     }
 
-    pyself_mut.set_attribute(&*CURRENT_STRING, PyPointer::new(PyObject::Int(current)));
+    // pyself_mut.set_attribute(&*CURRENT_STRING, PyPointer::new(PyObject::Int(current)));
+    // if current % 10000 == 0 {
+    // 
+    //     println!("current: {}::{:?}", current, instance.internal_storage);
+    // }
+    instance.internal_storage[CURRENT_IDX] = PyObject::Int(current);
     
     PyPointer::new(PyObject::Int(current))
 }
