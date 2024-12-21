@@ -58,12 +58,12 @@ pub fn get_int_class(object_class: PyPointer<PyClass>) -> PyClass {
         super_classes: vec![object_class],
 
         methods: PyMagicMethods {
-            __new__: Some(NewFunc(&(int__new__ as NewFuncType))),
-            __init__: Some(InitFunc(&(int__init__ as InitFuncType))),
+            __new__: Some(PyPointer::new(NewFunc(&(int__new__ as NewFuncType)))),
+            __init__: Some(PyPointer::new(InitFunc(&(int__init__ as InitFuncType)))),
 
-            __repr__: Some(UnaryFunc(&(int__repr__ as UnaryFuncType))),
-            __add__: Some(BivariateFunc(&(int__add__ as BivariateFuncType))),
-            __pow__: Some(BivariateFunc(&(int__pow__ as BivariateFuncType))),
+            __repr__: Some(PyPointer::new(UnaryFunc(&(int__repr__ as UnaryFuncType)))),
+            __add__: Some(PyPointer::new(BivariateFunc(&(int__add__ as BivariateFuncType)))),
+            __pow__: Some(PyPointer::new(BivariateFunc(&(int__pow__ as BivariateFuncType)))),
 
             ..py_magic_methods_defaults()
         }

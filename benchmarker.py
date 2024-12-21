@@ -3,26 +3,26 @@ import subprocess
 
 iters = 1
 
-def benchmark_rs():
+def benchmark_rusty(test):
     start = datetime.now()
     for i in range(iters):
-        subprocess.call(["./target/release/RustyPython.exe", "test_addition.py"])
+        subprocess.call(["./target/release/RustyPython.exe", test])
     end = datetime.now()
 
     return (end - start).total_seconds()
 
-def benchmark_py():
+def benchmark_py(test):
     start = datetime.now()
     for i in range(iters):
-        subprocess.call(["python", "tests/test_addition.py"])
+        subprocess.call(["python", f"tests/{test}"])
     end = datetime.now()
 
     return (end - start).total_seconds()
 
-def benchmark_rspy():
+def benchmark_rs(test):
     start = datetime.now()
     for i in range(iters):
-        subprocess.call(["./tests/rustpython.exe", "tests/test_addition.py"])
+        subprocess.call(["./tests/rustpython.exe", f"tests/{test}"])
     end = datetime.now()
 
     return (end - start).total_seconds()
@@ -43,11 +43,13 @@ flamegraph samples: 16,219
 """
 
 if __name__ == '__main__':
-    rs_time = benchmark_rs()
-    py_time = benchmark_py()
-    rsp_time = benchmark_rspy()
+    test_file = "test_deep_for_loop.py"
 
-    print(f"RustPython: {rsp_time}s")
-    print(f"RustyPython: {rs_time}s")
+    rs_time = benchmark_rs(test_file)
+    rusty_time = benchmark_rusty(test_file)
+    py_time = benchmark_py(test_file)
+
+    print(f"RustPython: {rs_time}s")
+    print(f"RustyPython: {rusty_time}s")
     print(f"CPython: {py_time}s")
-    print(f"Speedup: {py_time / rs_time:.2f}x")
+    print(f"Speedup: {py_time / rusty_time:.2f}x")

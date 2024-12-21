@@ -62,11 +62,11 @@ pub fn get_range_class(object_class: PyPointer<PyClass>) -> PyClass {
         name: "range".to_string(),
         super_classes: vec![object_class],
         methods: PyMagicMethods {
-            __init__: Some(InitFunc(&(range__init__ as InitFuncType))),
+            __init__: Some(PyPointer::new(InitFunc(&(range__init__ as InitFuncType)))),
 
-            __repr__: Some(UnaryFunc(&(range__repr__ as UnaryFuncType))),
+            __repr__: Some(PyPointer::new(UnaryFunc(&(range__repr__ as UnaryFuncType)))),
 
-            __iter__: Some(UnaryFunc(&(range__iter__ as UnaryFuncType))),
+            __iter__: Some(PyPointer::new(UnaryFunc(&(range__iter__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
         }
@@ -105,18 +105,11 @@ pub fn range_iterator__next__(arena: &mut PyArena, pyself: PyPointer<PyObject>) 
     let stop = expect_int(instance.internal_storage.get(STOP_IDX).unwrap().clone());
     let step = expect_int(instance.internal_storage.get(STEP_IDX).unwrap().clone());
     
-    current += step;
-    
     if current >= stop {
         return PyPointer::new(PyObject::InternalFlag(PyPointer::new(PyFlag::StopIteration)));  // StopIteration TODO remove internal pypointer
     }
 
-    // pyself_mut.set_attribute(&*CURRENT_STRING, PyPointer::new(PyObject::Int(current)));
-    // if current % 10000 == 0 {
-    // 
-    //     println!("current: {}::{:?}", current, instance.internal_storage);
-    // }
-    instance.internal_storage[CURRENT_IDX] = PyObject::Int(current);
+    instance.internal_storage[CURRENT_IDX] = PyObject::Int(current + step);
     
     PyPointer::new(PyObject::Int(current))
 }
@@ -126,8 +119,8 @@ pub fn get_range_iterator_class(object_class: PyPointer<PyClass>) -> PyClass {
         name: "range_iterator".to_string(),
         super_classes: vec![object_class],
         methods: PyMagicMethods {
-            __init__: Some(InitFunc(&(range_iterator__init__ as InitFuncType))),
-            __next__: Some(UnaryFunc(&(range_iterator__next__ as UnaryFuncType))),
+            __init__: Some(PyPointer::new(InitFunc(&(range_iterator__init__ as InitFuncType)))),
+            __next__: Some(PyPointer::new(UnaryFunc(&(range_iterator__next__ as UnaryFuncType)))),
             ..py_magic_methods_defaults()
         }
     }.create()

@@ -42,11 +42,11 @@ pub fn get_object_class() -> PyClass {
         name: "object".to_string(),
         super_classes: vec![],
         methods: PyMagicMethods {
-            __new__: Some(NewFunc(&(object__new__ as NewFuncType))),
-            __init__: Some(InitFunc(&(object__init__ as InitFuncType))),
+            __new__: Some(PyPointer::new(NewFunc(&(object__new__ as NewFuncType)))),
+            __init__: Some(PyPointer::new(InitFunc(&(object__init__ as InitFuncType)))),
 
-            __str__: Some(UnaryFunc(&(object__str__ as UnaryFuncType))),
-            __repr__: Some(UnaryFunc(&(object__repr__ as UnaryFuncType))),
+            __str__: Some(PyPointer::new(UnaryFunc(&(object__str__ as UnaryFuncType)))),
+            __repr__: Some(PyPointer::new(UnaryFunc(&(object__repr__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
         }
