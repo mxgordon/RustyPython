@@ -13,6 +13,7 @@ use crate::evaluator::{evaluate};
 
 fn main() {
     // env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("CARGO_PROFILE_RELEASE_DEBUG", "true");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();

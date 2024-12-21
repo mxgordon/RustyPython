@@ -1,6 +1,6 @@
 use peg::*;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Value {
     Integer(i64),
     Float(f64),
@@ -9,7 +9,7 @@ pub enum Value {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Comparitor {
     Equal,
     NotEqual,
@@ -23,7 +23,7 @@ pub enum Comparitor {
     NotIn,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Expr {
     Var(String),
     Val(Value),
@@ -36,7 +36,7 @@ pub enum Expr {
     Comparison(Box<Expr>, Comparitor, Box<Expr>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Define {
     PlusEq(String, Expr),
     MinusEq(String, Expr),
@@ -47,7 +47,7 @@ pub enum Define {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Statement {
     Expr(Expr),
     Defn(Define),
@@ -57,7 +57,7 @@ pub enum Statement {
     Break,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct CodeBlock {
     pub statements: Vec<Statement>,
     pub depth: usize,
