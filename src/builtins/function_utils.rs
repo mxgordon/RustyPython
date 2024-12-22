@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::rc::Rc;
 use crate::builtins::object::expect_class;
 use crate::builtins::pyobjects::{PyClass, PyInternalFunction, PyMagicMethod, PyObject, PyPointer};
 use crate::pyarena::PyArena;
@@ -19,8 +21,8 @@ pub fn call_function(func: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>, 
     }
 }
 
-pub(crate) fn eval_internal_func(func: PyPointer<PyInternalFunction>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
-    match (func.borrow().clone(), args.len()) {  //TODO figure out if I don't need to clone this
+pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
+    match (func.deref(), args.len()) {  //TODO figure out if I don't need to clone this
         (PyInternalFunction::NewFunc(func), n) => {
             func(arena, expect_class(args[0].clone()), args[1..n].to_vec())
         }

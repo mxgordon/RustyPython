@@ -14,7 +14,7 @@ pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObje
     
     match *str_fn.borrow() {
         PyObject::InternalSlot(ref func) => {
-            match *func.borrow() { 
+            match **func { 
                 PyInternalFunction::UnaryFunc(func) => {
                     str_rtn = func.call((arena, obj.clone()));
                 },

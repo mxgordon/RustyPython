@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use crate::builtins::object::{get_object_class};
 use crate::builtins::print::py_print;
 use crate::builtins::pyint::{get_int_class};
@@ -11,7 +12,7 @@ pub struct Globals {
     pub int_class: PyPointer<PyClass>,
     pub range_class: PyPointer<PyClass>,
     pub range_iterator_class: PyPointer<PyClass>,
-    pub print_func: PyPointer<PyInternalFunction>,
+    pub print_func: Rc<PyInternalFunction>,
 }
 
 impl Globals {
@@ -27,7 +28,7 @@ impl Globals {
             int_class,
             range_class,
             range_iterator_class,
-            print_func: PyPointer::new(PyInternalFunction::ManyArgFunc(&(py_print as ManyArgFuncType))),
+            print_func: Rc::new(PyInternalFunction::ManyArgFunc(&(py_print as ManyArgFuncType))),
         }
     }
     

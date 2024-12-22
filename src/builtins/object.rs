@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::builtins::function_utils::call_function;
 use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{InitFunc, NewFunc, UnaryFunc};
@@ -42,11 +43,11 @@ pub fn get_object_class() -> PyClass {
         name: "object".to_string(),
         super_classes: vec![],
         methods: PyMagicMethods {
-            __new__: Some(PyPointer::new(NewFunc(&(object__new__ as NewFuncType)))),
-            __init__: Some(PyPointer::new(InitFunc(&(object__init__ as InitFuncType)))),
+            __new__: Some(Rc::new(NewFunc(&(object__new__ as NewFuncType)))),
+            __init__: Some(Rc::new(InitFunc(&(object__init__ as InitFuncType)))),
 
-            __str__: Some(PyPointer::new(UnaryFunc(&(object__str__ as UnaryFuncType)))),
-            __repr__: Some(PyPointer::new(UnaryFunc(&(object__repr__ as UnaryFuncType)))),
+            __str__: Some(Rc::new(UnaryFunc(&(object__str__ as UnaryFuncType)))),
+            __repr__: Some(Rc::new(UnaryFunc(&(object__repr__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
         }

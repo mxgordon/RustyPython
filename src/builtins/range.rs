@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use once_cell::sync::Lazy;
 use crate::builtins::function_utils::init_internal_class;
 use crate::builtins::pyint::{expect_int, expect_int_ptr};
@@ -62,11 +63,11 @@ pub fn get_range_class(object_class: PyPointer<PyClass>) -> PyClass {
         name: "range".to_string(),
         super_classes: vec![object_class],
         methods: PyMagicMethods {
-            __init__: Some(PyPointer::new(InitFunc(&(range__init__ as InitFuncType)))),
+            __init__: Some(Rc::new(InitFunc(&(range__init__ as InitFuncType)))),
 
-            __repr__: Some(PyPointer::new(UnaryFunc(&(range__repr__ as UnaryFuncType)))),
+            __repr__: Some(Rc::new(UnaryFunc(&(range__repr__ as UnaryFuncType)))),
 
-            __iter__: Some(PyPointer::new(UnaryFunc(&(range__iter__ as UnaryFuncType)))),
+            __iter__: Some(Rc::new(UnaryFunc(&(range__iter__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
         }
@@ -119,8 +120,8 @@ pub fn get_range_iterator_class(object_class: PyPointer<PyClass>) -> PyClass {
         name: "range_iterator".to_string(),
         super_classes: vec![object_class],
         methods: PyMagicMethods {
-            __init__: Some(PyPointer::new(InitFunc(&(range_iterator__init__ as InitFuncType)))),
-            __next__: Some(PyPointer::new(UnaryFunc(&(range_iterator__next__ as UnaryFuncType)))),
+            __init__: Some(Rc::new(InitFunc(&(range_iterator__init__ as InitFuncType)))),
+            __next__: Some(Rc::new(UnaryFunc(&(range_iterator__next__ as UnaryFuncType)))),
             ..py_magic_methods_defaults()
         }
     }.create()

@@ -25,7 +25,7 @@ pub enum PyMagicMethod {
 }
 
 impl PyMagicMethod {
-    pub fn get_method(&self, methods: &PyMagicMethods) -> Option<PyPointer<PyInternalFunction>> {
+    pub fn get_method(&self, methods: &PyMagicMethods) -> Option<Rc<PyInternalFunction>> {
         match self {
             PyMagicMethod::New => methods.__new__.clone(),
             PyMagicMethod::Init => methods.__init__.clone(),
@@ -41,7 +41,7 @@ impl PyMagicMethod {
         }
     }
     
-    pub fn get_method_mut<'a>(&'a self, methods: &'a mut PyMagicMethods) -> &'a mut Option<PyPointer<PyInternalFunction>> {
+    pub fn get_method_mut<'a>(&'a self, methods: &'a mut PyMagicMethods) -> &'a mut Option<Rc<PyInternalFunction>> {
         match self {
             PyMagicMethod::New => &mut methods.__new__,
             PyMagicMethod::Init => &mut methods.__init__,
@@ -100,23 +100,23 @@ impl PyMagicMethod {
 pub struct PyMagicMethods {
     // --- internal functions ---
     // Instantiating functions
-    pub __new__: Option<PyPointer<PyInternalFunction>>,
-    pub __init__: Option<PyPointer<PyInternalFunction>>,
+    pub __new__: Option<Rc<PyInternalFunction>>,
+    pub __init__: Option<Rc<PyInternalFunction>>,
 
     // String functions
-    pub __str__: Option<PyPointer<PyInternalFunction>>,
-    pub __repr__: Option<PyPointer<PyInternalFunction>>,
+    pub __str__: Option<Rc<PyInternalFunction>>,
+    pub __repr__: Option<Rc<PyInternalFunction>>,
 
     // Math functions
-    pub __add__: Option<PyPointer<PyInternalFunction>>,
-    pub __sub__: Option<PyPointer<PyInternalFunction>>,
-    pub __mul__: Option<PyPointer<PyInternalFunction>>,
-    pub __truediv__: Option<PyPointer<PyInternalFunction>>,
-    pub __pow__: Option<PyPointer<PyInternalFunction>>,
+    pub __add__: Option<Rc<PyInternalFunction>>,
+    pub __sub__: Option<Rc<PyInternalFunction>>,
+    pub __mul__: Option<Rc<PyInternalFunction>>,
+    pub __truediv__: Option<Rc<PyInternalFunction>>,
+    pub __pow__: Option<Rc<PyInternalFunction>>,
 
     // Iterating functions
-    pub __iter__: Option<PyPointer<PyInternalFunction>>,
-    pub __next__: Option<PyPointer<PyInternalFunction>>,
+    pub __iter__: Option<Rc<PyInternalFunction>>,
+    pub __next__: Option<Rc<PyInternalFunction>>,
 }
 
 pub const fn py_magic_methods_defaults() -> PyMagicMethods {
@@ -135,7 +135,7 @@ pub const fn py_magic_methods_defaults() -> PyMagicMethods {
     }
 }
 impl PyMagicMethods {
-    pub fn get_method(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyInternalFunction>> {
+    pub fn get_method(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         magic_method.get_method(self)
         // let internal_func = magic_method.get_method(&self);
         // 
@@ -145,7 +145,7 @@ impl PyMagicMethods {
         // None
     }
     
-    pub fn set_method(&mut self, magic_method: PyMagicMethod, new_method: PyPointer<PyInternalFunction>) {
+    pub fn set_method(&mut self, magic_method: PyMagicMethod, new_method: Rc<PyInternalFunction>) {
         let mut internal_func= magic_method.get_method_mut(self);
         
         *internal_func = Some(new_method);
@@ -195,7 +195,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         self
     }
     
-    pub fn get_super_magic_methods(&self) -> Vec<(PyMagicMethod, PyPointer<PyInternalFunction>)> {
+    pub fn get_super_magic_methods(&self) -> Vec<(PyMagicMethod, Rc<PyInternalFunction>)> {
         let mut methods_to_set = Vec::new();
         if let PyClass::Internal { .. } = self {
             for magic_method_type in PyMagicMethod::iter() {
@@ -213,7 +213,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         methods_to_set
     }
 
-    pub fn load_super_magic_methods(&mut self, methods_to_set: Vec<(PyMagicMethod, PyPointer<PyInternalFunction>)>) {
+    pub fn load_super_magic_methods(&mut self, methods_to_set: Vec<(PyMagicMethod, Rc<PyInternalFunction>)>) {
         match self {
             PyClass::Internal { methods, .. } => {
                 for (magic_method_type, super_method) in methods_to_set {
@@ -224,7 +224,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         }
     }
 
-    pub fn search_for_attribute_internal(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyInternalFunction>> {
+    pub fn search_for_attribute_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         let search_result = match self {
             PyClass::UserDefined { .. } => {
                panic!("UserDefined classes will not have internal methods")
@@ -249,7 +249,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         search_result
     }
     
-    pub fn get_magic_method_internal(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyInternalFunction>> {
+    pub fn get_magic_method_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         match self {
             PyClass::UserDefined { .. } => {
                 panic!("UserDefined classes will not have internal methods")
@@ -341,7 +341,7 @@ pub enum PyObject {
     Exception(PyPointer<PyException>),
     None,
     // InternalSlot(PyPointer<fn(Vec<PyObject>) -> PyObject>),
-    InternalSlot(PyPointer<PyInternalFunction>),
+    InternalSlot(Rc<PyInternalFunction>),
     InternalFlag(PyPointer<PyFlag>),
     // Additional types as needed
 }
@@ -434,7 +434,7 @@ impl PyObject {
         }
     }
 
-    pub fn expect_internal_slot(&self) -> PyPointer<PyInternalFunction> {
+    pub fn expect_internal_slot(&self) -> Rc<PyInternalFunction> {
         match self {
             PyObject::InternalSlot(slot) => slot.clone(),
             _ => panic!("Expected internal slot"), // TODO make python error
