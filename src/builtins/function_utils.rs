@@ -46,22 +46,22 @@ pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: Vec<PyPoint
 }
 
 
-pub(crate) fn eval_obj_init(pyclass: PyPointer<PyClass>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
-    let pyclass_borrow = pyclass.borrow();
+pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
+    // let pyclass_borrow = pyclass.borrow();
 
-    let new_func = pyclass_borrow.search_for_attribute(PyMagicMethod::New);
-    let init_func = pyclass_borrow.search_for_attribute(PyMagicMethod::Init);
+    let new_func = pyclass.search_for_attribute(PyMagicMethod::New);
+    let init_func = pyclass.search_for_attribute(PyMagicMethod::Init);
 
     if new_func.is_none() {
-        panic!("{:?} has no __new__ method", pyclass_borrow); // TODO Make python error
+        panic!("{:?} has no __new__ method", pyclass); // TODO Make python error
     } else if init_func.is_none() {
-        panic!("{:?} has no __init__ method", pyclass_borrow)
+        panic!("{:?} has no __init__ method", pyclass)
     }
 
     let new_func = new_func.unwrap();
     let init_func = init_func.unwrap();
 
-    let mut new_args = vec![PyPointer::new(PyObject::Class(pyclass.clone())) ];
+    let mut new_args = vec![PyPointer::new(PyObject::Class(pyclass)) ];
     new_args.extend(args.clone());
 
     let new_object = call_function(new_func, new_args, arena);
@@ -74,11 +74,9 @@ pub(crate) fn eval_obj_init(pyclass: PyPointer<PyClass>, args: Vec<PyPointer<PyO
     new_object
 }
 
-pub(crate) fn init_internal_class(pyclass: PyPointer<PyClass>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
-    let pyclass_borrow = pyclass.borrow();
-
-    let new_func = pyclass_borrow.get_magic_method_internal(PyMagicMethod::New).unwrap();
-    let init_func = pyclass_borrow.get_magic_method_internal(PyMagicMethod::Init).unwrap();
+pub(crate) fn init_internal_class(pyclass: Rc<PyClass>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
+    let new_func = pyclass.get_magic_method_internal(PyMagicMethod::New).unwrap();
+    let init_func = pyclass.get_magic_method_internal(PyMagicMethod::Init).unwrap();
 
     let mut new_func_args = vec![PyPointer::new(PyObject::Class(pyclass.clone())) ];
     new_func_args.extend(args.clone());

@@ -156,11 +156,11 @@ pub enum PyClass {
     UserDefined {
         name: String,
         attributes: HashMap<String, PyPointer<PyObject>>,
-        super_classes: Vec<PyPointer<PyClass>>
+        super_classes: Vec<Rc<PyClass>>
     },
     Internal {
         name: String,
-        super_classes: Vec<PyPointer<PyClass>>,
+        super_classes: Vec<Rc<PyClass>>,
         methods: PyMagicMethods
     },
 }
@@ -173,7 +173,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         }
     }
 
-    pub fn get_super_classes(&self) -> Vec<PyPointer<PyClass>> {
+    pub fn get_super_classes(&self) -> Vec<Rc<PyClass>> {
         match self {
             PyClass::UserDefined { super_classes, .. } => super_classes.clone(),
             PyClass::Internal { super_classes, .. } => super_classes.clone(),
@@ -238,7 +238,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
 
         if search_result.is_none() {
             for base_class in self.get_super_classes() {
-                let attr = base_class.borrow().search_for_attribute_internal(magic_method.clone());
+                let attr = base_class.search_for_attribute_internal(magic_method.clone());
 
                 if attr.is_some() {
                     return attr.clone();
@@ -301,14 +301,14 @@ pub struct PyFunction {
 
 #[derive(Debug)]
 pub struct PyInstance {
-    class: PyPointer<PyClass>,
+    class: Rc<PyClass>,
     attributes: RwLock<HashMap<String, PyPointer<PyObject>>>,
     pub internal_storage: Vec<PyObject>
 
 }
 
 impl PyInstance {
-    pub fn new(py_class: PyPointer<PyClass>) -> Self {
+    pub fn new(py_class: Rc<PyClass>) -> Self {
         PyInstance {
             class: py_class,
             attributes: RwLock::new(HashMap::new()),
@@ -327,29 +327,28 @@ impl PyInstance {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum PyObject {
+    None,
     Int(i64),
     Float(f64),
     Str(String),
     // List(Vec<PyObject>),
     // Dict(HashMap<String, PyObject>),
     Bool(bool),
-    Class(PyPointer<PyClass>),
-    Instance(PyPointer<PyInstance>),
-    Function(PyPointer<PyFunction>),
-    Exception(PyPointer<PyException>),
-    None,
-    // InternalSlot(PyPointer<fn(Vec<PyObject>) -> PyObject>),
+    Class(Rc<PyClass>),
+    Instance(PyInstance),
+    Function(PyFunction),
+    Exception(PyException),
     InternalSlot(Rc<PyInternalFunction>),
-    InternalFlag(PyPointer<PyFlag>),
+    InternalFlag(PyFlag),
     // Additional types as needed
 }
 
 impl PyObject {
-    pub fn get_class(&self, arena: &mut PyArena) -> PyPointer<PyClass> {
+    pub fn get_class(&self, arena: &mut PyArena) -> Rc<PyClass> {
         match self {
-            PyObject::Instance(py_instance) => py_instance.borrow().class.clone(),
+            PyObject::Instance(py_instance) => py_instance.class.clone(),
             PyObject::Int(_) => arena.globals.int_class.clone(),
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
@@ -366,7 +365,7 @@ impl PyObject {
     pub fn set_attribute(&mut self, name: &String, value: PyPointer<PyObject>)  {
         match self {
             PyObject::Instance(instance) => {
-                instance.borrow_mut().set_field(name.clone(), value.clone());
+                instance.set_field(name.clone(), value.clone());
             }
             _ => panic!("Cannot set {} of an object that is a {:?}", name, self), // TODO make python error
         }
@@ -374,13 +373,13 @@ impl PyObject {
 
     pub fn get_magic_method(&self, py_magic_method: PyMagicMethod, arena: &mut PyArena) -> Option<PyPointer<PyObject>> {
         match self {
-            PyObject::Int(_value) => {arena.globals.int_class.borrow().search_for_attribute(py_magic_method)}  // TODO make better
+            PyObject::Int(_value) => {arena.globals.int_class.search_for_attribute(py_magic_method)}  // TODO make better
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                instance.borrow().class.clone().borrow().search_for_attribute(py_magic_method)
+                instance.class.clone().search_for_attribute(py_magic_method)
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -392,13 +391,13 @@ impl PyObject {
 
     pub fn get_attribute(&self, name: &str, arena: &mut PyArena) -> Option<PyPointer<PyObject>> {
         match self {
-            PyObject::Int(_value) => {arena.globals.int_class.borrow().search_for_attribute(PyMagicMethod::from_string(name)?)}  // TODO make better
+            PyObject::Int(_value) => {arena.globals.int_class.search_for_attribute(PyMagicMethod::from_string(name)?)}  // TODO make better
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                instance.borrow().get_field(name)
+                instance.get_field(name)
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -418,7 +417,7 @@ impl PyObject {
     pub fn is_flag_type(&self, flag: PyFlag) -> bool {
         match self {
             PyObject::InternalFlag(flag_type) => {
-                let self_descrim = flag_type.borrow().clone() as isize;
+                let self_descrim = flag_type.clone() as isize;
                 let other_descrim = flag as isize;
 
                 self_descrim == other_descrim
@@ -440,15 +439,22 @@ impl PyObject {
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
-    pub fn expect_instance(&self) -> PyPointer<PyInstance> {
+    pub fn expect_instance(&self) -> &PyInstance {
         match self {
-            PyObject::Instance(instance) => instance.clone(),
+            PyObject::Instance(instance) => instance,
+            _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
+    
+    pub fn expect_instance_mut(&mut self) -> &mut PyInstance {
+        match self {
+            PyObject::Instance(instance) => instance,
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
 }
 
-pub type NewFuncType = fn(&mut PyArena, PyPointer<PyClass>, Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
+pub type NewFuncType = fn(&mut PyArena, Rc<PyClass>, Vec<PyPointer<PyObject>>) -> PyPointer<PyObject>;
 pub type InitFuncType = fn(&mut PyArena, PyPointer<PyObject>, Vec<PyPointer<PyObject>>) -> ();
 pub type UnaryFuncType = fn(&mut PyArena, PyPointer<PyObject>) -> PyPointer<PyObject>;
 pub type BivariateFuncType = fn(&mut PyArena, PyPointer<PyObject>, PyPointer<PyObject>) -> PyPointer<PyObject>;

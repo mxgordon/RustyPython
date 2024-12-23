@@ -4,9 +4,9 @@ use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{BivariateFunc, InitFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
-pub fn expect_int(pyobj: PyObject) -> i64 {
+pub fn expect_int(pyobj: &PyObject) -> i64 {
     match pyobj {
-        PyObject::Int(value) => value,
+        PyObject::Int(value) => *value,
         ref value => panic!("Expected int, got {:?}", value),
     }
 }
@@ -18,7 +18,7 @@ pub fn expect_int_ptr(pyobj: PyPointer<PyObject>) -> i64 {
     }
 }
 
-pub fn int__new__(_arena: &mut PyArena, _pyclass: PyPointer<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {  // error handling
+pub fn int__new__(_arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {  // error handling
     let value = pyargs.get(0).unwrap();
     
     let new_value = match *value.borrow() {  // cast value
@@ -53,7 +53,7 @@ pub fn int__repr__(_arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPoint
     let value = expect_int_ptr(pyself);
     PyPointer::new(PyObject::Str(value.to_string()))
 }
-pub fn get_int_class(object_class: PyPointer<PyClass>) -> PyClass {
+pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {
         name: "int".to_string(),
         super_classes: vec![object_class],

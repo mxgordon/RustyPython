@@ -4,19 +4,19 @@ use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{InitFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
-pub fn expect_class(pyobj: PyPointer<PyObject>) -> PyPointer<PyClass> {
+pub fn expect_class(pyobj: PyPointer<PyObject>) -> Rc<PyClass> {
     match *pyobj.borrow() {
         PyObject::Class(ref class) => class.clone(),
         _ => panic!("Expected class"),
     }
 }
 
-pub fn object__new__(_arena: &mut PyArena, pyclass: PyPointer<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {
-    if !pyclass.borrow().defines_attribute(PyMagicMethod::Init) && pyargs.len() > 0 {
+pub fn object__new__(_arena: &mut PyArena, pyclass: Rc<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {
+    if !pyclass.defines_attribute(PyMagicMethod::Init) && pyargs.len() > 0 {
         panic!("TypeError: object.__new__() takes exactly one argument (the type to instantiate)");  // TODO make python error
     } 
 
-    let pyself = PyPointer::new(PyObject::Instance(PyPointer::new(PyInstance::new(pyclass))));
+    let pyself = PyPointer::new(PyObject::Instance(PyInstance::new(pyclass)));
 
     pyself
 }
@@ -24,13 +24,13 @@ pub fn object__new__(_arena: &mut PyArena, pyclass: PyPointer<PyClass>, pyargs: 
 pub fn object__init__(arena: &mut PyArena, pyself: PyPointer<PyObject>, pyargs: Vec<PyPointer<PyObject>>) {
     let pyclass = pyself.borrow().get_class(arena);
     
-    if !pyclass.borrow().defines_attribute(PyMagicMethod::New) && pyargs.len() > 0 {
+    if !pyclass.defines_attribute(PyMagicMethod::New) && pyargs.len() > 0 {
         panic!("TypeError: object.__init__() takes exactly one argument (the instance to initialize)");  // TODO make python error
     }
 }
 
 pub fn object__repr__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
-    PyPointer::new(PyObject::Str(format!("<{} object at {:p}>", pyself.borrow().get_class(arena).borrow().get_name(), &pyself)))
+    PyPointer::new(PyObject::Str(format!("<{} object at {:p}>", pyself.borrow().get_class(arena).get_name(), &pyself)))
 }
 
 pub fn object__str__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {  // by default make str call repr

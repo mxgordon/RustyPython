@@ -15,7 +15,7 @@ pub const CURRENT_IDX: usize = 3;
 
 
 pub fn range__init__(_arena: &mut PyArena, pyself: PyPointer<PyObject>, args: Vec<PyPointer<PyObject>>) {
-    let first = expect_int_ptr(args.get(0).unwrap_or_else(|| panic!("Expected at least one arguments to __init__, received zero")).clone());
+    let first = expect_int_ptr(args.get(0).unwrap_or_else(|| panic!("Expected at least one argument to __init__, received zero")).clone());
     let second = args.get(1);
     let third = args.get(2);
     
@@ -58,7 +58,7 @@ pub fn range__iter__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPoin
     init_internal_class(arena.globals.range_iterator_class.clone(), vec![pyself.clone()], arena)
 }
 
-pub fn get_range_class(object_class: PyPointer<PyClass>) -> PyClass {
+pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {
         name: "range".to_string(),
         super_classes: vec![object_class],
@@ -87,9 +87,8 @@ pub fn range_iterator__init__(arena: &mut PyArena, pyself: PyPointer<PyObject>, 
     let step = expect_int_ptr(range_obj.get_attribute("step", arena).unwrap());
 
 
-    let pyself = pyself.borrow();
-    let instance_ptr = pyself.expect_instance();
-    let mut instance = instance_ptr.borrow_mut();
+    let mut pyself = pyself.borrow_mut();
+    let mut instance = pyself.expect_instance_mut();
 
     instance.internal_storage.insert(START_IDX, PyObject::Int(start));
     instance.internal_storage.insert(STOP_IDX, PyObject::Int(stop));
@@ -98,16 +97,15 @@ pub fn range_iterator__init__(arena: &mut PyArena, pyself: PyPointer<PyObject>, 
 }
 
 pub fn range_iterator__next__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
-    let mut pyself_mut = pyself.borrow_mut();
-    let instance_ptr = pyself_mut.expect_instance();
-    let mut instance = instance_ptr.borrow_mut();
+    let mut pyself = pyself.borrow_mut();
+    let mut instance = pyself.expect_instance_mut();
 
-    let mut current = expect_int(instance.internal_storage.get(CURRENT_IDX).unwrap().clone());
-    let stop = expect_int(instance.internal_storage.get(STOP_IDX).unwrap().clone());
-    let step = expect_int(instance.internal_storage.get(STEP_IDX).unwrap().clone());
+    let mut current = expect_int(instance.internal_storage.get(CURRENT_IDX).unwrap());
+    let stop = expect_int(instance.internal_storage.get(STOP_IDX).unwrap());
+    let step = expect_int(instance.internal_storage.get(STEP_IDX).unwrap());
     
     if current >= stop {
-        return PyPointer::new(PyObject::InternalFlag(PyPointer::new(PyFlag::StopIteration)));  // StopIteration TODO remove internal pypointer
+        return PyPointer::new(PyObject::InternalFlag(PyFlag::StopIteration));  // StopIteration TODO remove internal pypointer
     }
 
     instance.internal_storage[CURRENT_IDX] = PyObject::Int(current + step);
@@ -115,7 +113,7 @@ pub fn range_iterator__next__(arena: &mut PyArena, pyself: PyPointer<PyObject>) 
     PyPointer::new(PyObject::Int(current))
 }
 
-pub fn get_range_iterator_class(object_class: PyPointer<PyClass>) -> PyClass {
+pub fn get_range_iterator_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {  // Hidden class
         name: "range_iterator".to_string(),
         super_classes: vec![object_class],

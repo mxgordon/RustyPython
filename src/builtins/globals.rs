@@ -8,20 +8,20 @@ use crate::builtins::range::{get_range_class, get_range_iterator_class};
 
 #[derive(Debug)]
 pub struct Globals {
-    pub object_class: PyPointer<PyClass>,
-    pub int_class: PyPointer<PyClass>,
-    pub range_class: PyPointer<PyClass>,
-    pub range_iterator_class: PyPointer<PyClass>,
+    pub object_class: Rc<PyClass>,
+    pub int_class: Rc<PyClass>,
+    pub range_class: Rc<PyClass>,
+    pub range_iterator_class: Rc<PyClass>,
     pub print_func: Rc<PyInternalFunction>,
 }
 
 impl Globals {
     pub(crate) fn new() -> Globals {
-        let object_class = PyPointer::new(get_object_class());
-        let int_class = PyPointer::new(get_int_class(object_class.clone()));
+        let object_class = Rc::new(get_object_class());
+        let int_class = Rc::new(get_int_class(object_class.clone()));
         
-        let range_class = PyPointer::new(get_range_class(object_class.clone()));
-        let range_iterator_class = PyPointer::new(get_range_iterator_class(object_class.clone()));
+        let range_class = Rc::new(get_range_class(object_class.clone()));
+        let range_iterator_class = Rc::new(get_range_iterator_class(object_class.clone()));
         
         Globals {
             object_class,

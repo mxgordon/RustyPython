@@ -12,8 +12,7 @@ use parser::python_parser;
 use crate::evaluator::{evaluate};
 
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
-    // env::set_var("CARGO_PROFILE_RELEASE_DEBUG", "true");
+    env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();

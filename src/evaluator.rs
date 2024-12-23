@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::parser::*;
 use crate::pyarena::PyArena;
@@ -129,9 +130,10 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
     
     let next_func = iterator.borrow().get_magic_method(PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
     
-    let next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
+    let mut next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
+    let var_name = var.to_string();
 
-    arena.set(var.to_string(), next_val.clone());
+    arena.set(var_name.clone(), next_val.clone());
 
     while !next_val.borrow().is_flag_type(PyFlag::StopIteration) {
         let code_result = eval_code_block(code, arena);
@@ -143,7 +145,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
 
             match *code_rtn.clone().borrow() {
                 PyObject::InternalFlag(ref flag) => {
-                    match *flag.borrow() {
+                    match *flag {
                         PyFlag::StopIteration => {panic!("StopIteration flag should not be returned")},
                         PyFlag::GeneratorExit => {panic!("GeneratorExit flag should not be returned")},
                         PyFlag::Break => break,
@@ -154,10 +156,11 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Op
             }
         }
 
-        let mut next_ptr = next_val.borrow_mut(); // assigns next var without doing a hashmap lookup TODO make this keep the same PyPointer
-        let next_value = call_function(next_func.clone(), vec![iterator.clone()], arena).borrow().clone();
+        // let mut next_ptr = next_val.borrow_mut(); // assigns next var without doing a hashmap lookup TODO make this keep the same PyPointer
+        next_val = call_function(next_func.clone(), vec![iterator.clone()], arena);
         
-        *next_ptr = next_value;
+        // *next_ptr = next_val.borrow().deref().deref();
+        arena.set(var_name.clone(), next_val.clone());
         
     };
     arena.remove(var).unwrap_or_else(|| panic!("Variable {} not found", var)); // TODO Make python error
@@ -175,8 +178,8 @@ fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> Option<PyPointer<Py
             Statement::Defn(define) => eval_defn(define, arena),
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena),
             Statement::Return(rtn_expr) => rtn_val = Some(eval_expr(rtn_expr, arena)),
-            Statement::Continue => rtn_val = Some(PyPointer::new(PyObject::InternalFlag(PyPointer::new(PyFlag::Continue)))),
-            Statement::Break => rtn_val = Some(PyPointer::new(PyObject::InternalFlag(PyPointer::new(PyFlag::Break)))),
+            Statement::Continue => rtn_val = Some(PyPointer::new(PyObject::InternalFlag(PyFlag::Continue))),
+            Statement::Break => rtn_val = Some(PyPointer::new(PyObject::InternalFlag(PyFlag::Break))),
         };
 
         if rtn_val.is_some() {
