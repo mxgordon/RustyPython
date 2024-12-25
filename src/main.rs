@@ -11,6 +11,9 @@ use std::io::Read;
 use parser::python_parser;
 use crate::evaluator::{evaluate};
 
+#[macro_use]
+extern crate mopa;
+
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();

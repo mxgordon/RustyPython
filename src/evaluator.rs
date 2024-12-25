@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::parser::*;
 use crate::pyarena::PyArena;
@@ -93,7 +92,7 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> PyPointer<PyObject> {
         Expr::Minus(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::Sub, first, vec![second], arena)}
         Expr::Comparison(_first, _comp, _second) => {todo!()}
         Expr::Pow(first, second) => call_magic_method_of_pyobj_with_args(PyMagicMethod::Pow, first, vec![second], arena),
-        Expr::FunCall(name, args) => eval_fun_call(name, args.clone(), arena)
+        Expr::FunCall(name, args) => eval_fun_call(name, args, arena)
     }
 }
 

@@ -6,6 +6,6 @@ for i in range(ITERATIONS):
         for k in range(j):
             for l in range(k):
                 for n in range(l):
-                    total += l
+                    total += n
 
 print(total)

@@ -19,17 +19,16 @@ pub fn expect_int_ptr(pyobj: PyPointer<PyObject>) -> i64 {
 }
 
 pub fn int__new__(_arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {  // error handling
-    let value = pyargs.get(0).unwrap();
+    let value = pyargs.first().unwrap();
     
     let new_value = match *value.borrow() {  // cast value
-        PyObject::Int(ref value) => value.clone(),  // copy the value
+        PyObject::Int(ref value) => *value,  // copy the value
         PyObject::Float(ref value) => *value as i64,
         PyObject::Str(ref value) => value.parse::<i64>().unwrap(),
         _ => panic!("Expected int, str, or float"), // TODO make python error
     };
     
-    let pyself = PyPointer::new(PyObject::Int(new_value));  // idk how to do inheritance with this
-    pyself
+    PyPointer::new(PyObject::Int(new_value))  // I don't know how to do inheritance with this
 }
 
 pub fn int__init__(_arena: &mut PyArena, _pyself: PyPointer<PyObject>, _pyargs: Vec<PyPointer<PyObject>>) {

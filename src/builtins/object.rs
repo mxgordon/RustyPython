@@ -4,6 +4,33 @@ use crate::builtins::pyobjects::*;
 use crate::builtins::pyobjects::PyInternalFunction::{InitFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
+#[derive(Debug)]
+pub struct ObjectInstance {
+    class: Rc<PyClass>
+}
+
+impl PyInstance for ObjectInstance {
+    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) {
+        panic!("Object type has no fields of its own")
+    }
+
+    fn get_field(&self, _key: &str) -> Option<PyPointer<PyObject>> {
+        panic!("Object type has no fields of its own")
+    }
+
+    fn get_class(&self) -> Rc<PyClass> {
+        self.class.clone()
+    }
+}
+
+impl ObjectInstance {
+    pub fn new(py_class: Rc<PyClass>) -> ObjectInstance {
+        ObjectInstance {
+            class: py_class
+        }
+    }
+}
+
 pub fn expect_class(pyobj: PyPointer<PyObject>) -> Rc<PyClass> {
     match *pyobj.borrow() {
         PyObject::Class(ref class) => class.clone(),
@@ -16,7 +43,7 @@ pub fn object__new__(_arena: &mut PyArena, pyclass: Rc<PyClass>, pyargs: Vec<PyP
         panic!("TypeError: object.__new__() takes exactly one argument (the type to instantiate)");  // TODO make python error
     } 
 
-    let pyself = PyPointer::new(PyObject::Instance(PyInstance::new(pyclass)));
+    let pyself = PyPointer::new(PyObject::Instance(Box::new(ObjectInstance::new(pyclass))));
 
     pyself
 }
@@ -35,7 +62,7 @@ pub fn object__repr__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPoi
 
 pub fn object__str__(arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {  // by default make str call repr
     let str_func = pyself.borrow().get_attribute("__repr__", arena).unwrap();
-    call_function(str_func, vec![pyself.clone()], &mut PyArena::new())
+    call_function(str_func, vec![pyself.clone()], arena)
 }
 
 pub fn get_object_class() -> PyClass {

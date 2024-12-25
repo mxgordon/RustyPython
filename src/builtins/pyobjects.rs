@@ -8,6 +8,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use crate::parser::CodeBlock;
 use crate::pyarena::PyArena;
+use mopa::{mopafy};
 
 #[derive(Clone, Debug, EnumIter)]
 pub enum PyMagicMethod {
@@ -146,7 +147,7 @@ impl PyMagicMethods {
     }
     
     pub fn set_method(&mut self, magic_method: PyMagicMethod, new_method: Rc<PyInternalFunction>) {
-        let mut internal_func= magic_method.get_method_mut(self);
+        let internal_func= magic_method.get_method_mut(self);
         
         *internal_func = Some(new_method);
     }
@@ -300,30 +301,44 @@ pub struct PyFunction {
 }
 
 #[derive(Debug)]
-pub struct PyInstance {
+pub struct PyInstanceGeneric {
     class: Rc<PyClass>,
     attributes: RwLock<HashMap<String, PyPointer<PyObject>>>,
-    pub internal_storage: Vec<PyObject>
+    // pub internal_storage: Vec<PyObject>
 
 }
 
-impl PyInstance {
-    pub fn new(py_class: Rc<PyClass>) -> Self {
-        PyInstance {
-            class: py_class,
-            attributes: RwLock::new(HashMap::new()),
-            internal_storage: vec![]
-        }
-    }
+pub trait PyInstance: mopa::Any + Debug {
+    // fn new(py_class: Rc<PyClass>) -> Self;
+    fn set_field(&mut self, key: String, value: PyPointer<PyObject>);
+    fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>>;
+    fn get_class(&self) -> Rc<PyClass>;
+}
 
-    pub fn set_field(&mut self, key: String, value: PyPointer<PyObject>) {
-        let mut attributes = self.attributes.get_mut().unwrap_or_else(|e| panic!("Failed to get mutable attributes: {:?}", e));
+mopafy!(PyInstance);
+
+impl PyInstance for PyInstanceGeneric {
+    fn set_field(&mut self, key: String, value: PyPointer<PyObject>) {
+        let attributes = self.attributes.get_mut().unwrap_or_else(|e| panic!("Failed to get mutable attributes: {:?}", e));
         let _old_value = attributes.insert(key, value);
     }
 
-    pub fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>> {
+    fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>> {
         let attributes = self.attributes.read().ok()?;
         attributes.get(key).cloned()
+    }
+
+    fn get_class(&self) -> Rc<PyClass> {
+        self.class.clone()
+    }
+}
+
+impl PyInstanceGeneric {
+    fn new(py_class: Rc<PyClass>) -> Self {
+        PyInstanceGeneric {
+            class: py_class,
+            attributes: RwLock::new(HashMap::new()),
+        }
     }
 }
 
@@ -337,7 +352,7 @@ pub enum PyObject {
     // Dict(HashMap<String, PyObject>),
     Bool(bool),
     Class(Rc<PyClass>),
-    Instance(PyInstance),
+    Instance(Box<dyn PyInstance>),
     Function(PyFunction),
     Exception(PyException),
     InternalSlot(Rc<PyInternalFunction>),
@@ -348,7 +363,7 @@ pub enum PyObject {
 impl PyObject {
     pub fn get_class(&self, arena: &mut PyArena) -> Rc<PyClass> {
         match self {
-            PyObject::Instance(py_instance) => py_instance.class.clone(),
+            PyObject::Instance(py_instance) => py_instance.get_class().clone(),
             PyObject::Int(_) => arena.globals.int_class.clone(),
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
@@ -379,7 +394,7 @@ impl PyObject {
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                instance.class.clone().search_for_attribute(py_magic_method)
+                instance.get_class().clone().search_for_attribute(py_magic_method)
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -439,14 +454,14 @@ impl PyObject {
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
-    pub fn expect_instance(&self) -> &PyInstance {
+    pub fn expect_instance(&self) -> &Box<dyn PyInstance> {
         match self {
             PyObject::Instance(instance) => instance,
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
     
-    pub fn expect_instance_mut(&mut self) -> &mut PyInstance {
+    pub fn expect_instance_mut(&mut self) -> &mut Box<dyn PyInstance> {
         match self {
             PyObject::Instance(instance) => instance,
             _ => panic!("Expected internal slot"), // TODO make python error

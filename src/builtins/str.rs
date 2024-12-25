@@ -10,7 +10,7 @@ pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObje
     }
     
     let str_fn = str_fn.unwrap();
-    let mut str_rtn = PyPointer::new(PyObject::None);
+    let str_rtn;
     
     match *str_fn.borrow() {
         PyObject::InternalSlot(ref func) => {
@@ -21,7 +21,7 @@ pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObje
                 _ => {todo!()}
             }
         },
-        PyObject::Function(ref func) => {
+        PyObject::Function(ref _func) => {
             todo!()
         },
         _ => {panic!("Object has no __str__ method");}  // TODO Make python error
