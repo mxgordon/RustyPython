@@ -47,28 +47,13 @@ pub enum Define {
 }
 
 
-#[derive(Debug)]
-pub enum Statement {
-    Expr(Expr),
-    Defn(Define),
-    For(String, Expr, CodeBlock), // TODO allow for variable unpacking
-    Return(Expr),
-    Continue,
-    Break,
-}
-
-#[derive(Debug)]
-pub struct CodeBlock {
-    pub statements: Vec<Statement>,
-    pub depth: usize,
-}
-
 peg::parser!{
     pub grammar python_parser() for str {
         pub rule sp() = quiet!{" "*}
         pub rule sp1() = quiet!{" "+}
         pub rule nosp() = !" "
-        pub rule nl() = quiet!{("\r\n" / "\n")+}
+        pub rule comment() = ("#" [^('\n')]* ("\n" / [^_]))
+        pub rule nl() = ("\r\n" / "\n")+ / ";" / comment()
         pub rule ws() = quiet!{("\r\n" / "\n" / " ")*}
 
         pub rule indent(min: usize) = quiet!{" "*<{min}>}
@@ -143,5 +128,21 @@ peg::parser!{
         // pub rule code(depth: usize) -> CodeBlock = &" "*<{depth}> spaces:" "*<{depth},> s:(statement(depth) ** nl()) sp() {CodeBlock::Block(s)}
         pub rule code(depth: usize) -> CodeBlock = spaces:" "*<{depth},> statements:(statement(depth) ** (nl() ws() indent(spaces.len()))) {CodeBlock{statements, depth: spaces.len()}}
     }
+}
+
+#[derive(Debug)]
+pub enum Statement {
+    Expr(Expr),
+    Defn(Define),
+    For(String, Expr, CodeBlock), // TODO allow for variable unpacking
+    Return(Expr),
+    Continue,
+    Break,
+}
+
+#[derive(Debug)]
+pub struct CodeBlock {
+    pub statements: Vec<Statement>,
+    pub depth: usize,
 }
 

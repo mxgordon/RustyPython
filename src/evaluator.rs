@@ -60,16 +60,22 @@ fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> PyP
     }
 }
 
-// fn call_function_of_pyobj_with_args(func_name: String, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> PyPointer<PyObject> {
-//     let pyobj = eval_expr(pyobj_expr, arena);
-//     let pyargs: Vec<PyPointer<PyObject>> = args.iter().map(|arg| eval_expr(arg, arena)).collect();
-// 
-//     let func = pyobj.borrow().get_attribute(func_name.clone().as_str(), arena).unwrap_or_else(|| panic!("Object has no attribute {}", func_name)); // TODO Make python error
-//     let mut func_args = vec![pyobj];
-//     func_args.extend(pyargs);
-// 
-//     call_function(func, func_args, arena)
-// }
+fn call_method_of_pyobj_with_args(func_name: String, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> PyPointer<PyObject> {
+    let magic_method = PyMagicMethod::from_string(func_name.as_str());
+
+    if let Some(magic_method) = magic_method {
+        return call_magic_method_of_pyobj_with_args(magic_method, pyobj_expr, args, arena);
+    }
+    
+    let pyobj = eval_expr(pyobj_expr, arena);
+    let pyargs: Vec<PyPointer<PyObject>> = args.iter().map(|arg| eval_expr(arg, arena)).collect();
+
+    let func = pyobj.borrow().get_attribute(func_name.clone().as_str(), arena);//.unwrap_or_else(|| panic!("Object has no attribute {}", func_name)); // TODO Make python error
+    let mut func_args = vec![pyobj];
+    func_args.extend(pyargs);
+
+    call_function(func, func_args, arena)
+}
 
 fn call_magic_method_of_pyobj_with_args(py_magic_method: PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> PyPointer<PyObject> {
     let pyobj = eval_expr(pyobj_expr, arena);

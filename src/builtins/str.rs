@@ -1,9 +1,9 @@
-use crate::builtins::pyobjects::{PyInternalFunction, PyObject, PyPointer};
+use crate::builtins::pyobjects::{PyInternalFunction, PyMagicMethod, PyObject, PyPointer};
 use crate::pyarena::PyArena;
 
 pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObject> {
     let obj = obj.clone();
-    let str_fn = obj.borrow().get_attribute("__str__", arena);
+    let str_fn = obj.borrow().get_magic_method(PyMagicMethod::Str, arena);
     
     if str_fn.is_none() {
         panic!("Object has no __str__ method"); // TODO Make python error

@@ -138,12 +138,6 @@ pub const fn py_magic_methods_defaults() -> PyMagicMethods {
 impl PyMagicMethods {
     pub fn get_method(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         magic_method.get_method(self)
-        // let internal_func = magic_method.get_method(&self);
-        // 
-        // if let Some(internal_func) = internal_func {// TODO move pypointer creating to initialization of PyMagicMethods
-        //     return Some(PyPointer::new(internal_func.clone()));
-        // }
-        // None
     }
     
     pub fn set_method(&mut self, magic_method: PyMagicMethod, new_method: Rc<PyInternalFunction>) {
@@ -162,7 +156,8 @@ pub enum PyClass {
     Internal {
         name: String,
         super_classes: Vec<Rc<PyClass>>,
-        methods: PyMagicMethods
+        magic_methods: PyMagicMethods,
+        attributes: HashMap<String, PyPointer<PyObject>>,
     },
 }
 
@@ -185,7 +180,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         match self {
             PyClass::UserDefined { attributes, .. } => attributes.contains_key(&magic_method.to_string()),
             PyClass::Internal {
-                methods, ..
+                magic_methods: methods, ..
             } => magic_method.get_method(methods).is_some(),
         }
     }
@@ -204,7 +199,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
                     continue;
                 }
 
-                if let Some(super_method) = self.search_for_attribute_internal(magic_method_type.clone()) {
+                if let Some(super_method) = self.search_for_magic_method_internal(magic_method_type.clone()) {
                     methods_to_set.push((magic_method_type, super_method));
                 }
                 
@@ -216,7 +211,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
 
     pub fn load_super_magic_methods(&mut self, methods_to_set: Vec<(PyMagicMethod, Rc<PyInternalFunction>)>) {
         match self {
-            PyClass::Internal { methods, .. } => {
+            PyClass::Internal { magic_methods: methods, .. } => {
                 for (magic_method_type, super_method) in methods_to_set {
                     methods.set_method(magic_method_type, super_method);
                 }
@@ -225,13 +220,13 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         }
     }
 
-    pub fn search_for_attribute_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
+    pub fn search_for_magic_method_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         let search_result = match self {
             PyClass::UserDefined { .. } => {
                panic!("UserDefined classes will not have internal methods")
             },
 
-            PyClass::Internal { methods, .. } => {
+            PyClass::Internal { magic_methods: methods, .. } => {
                 methods.get_method(magic_method.clone())
             }
 
@@ -239,7 +234,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
 
         if search_result.is_none() {
             for base_class in self.get_super_classes() {
-                let attr = base_class.search_for_attribute_internal(magic_method.clone());
+                let attr = base_class.search_for_magic_method_internal(magic_method.clone());
 
                 if attr.is_some() {
                     return attr.clone();
@@ -256,21 +251,42 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
                 panic!("UserDefined classes will not have internal methods")
             },
 
-            PyClass::Internal {methods, ..} => {
+            PyClass::Internal { magic_methods: methods, ..} => {
                 let attr = methods.get_method(magic_method.clone());
                 attr
             }
         }
     }
 
-    pub fn search_for_attribute(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyObject>> {
+    pub fn search_for_magic_method(&self, magic_method: PyMagicMethod) -> Option<PyPointer<PyObject>> {
         match self {
             PyClass::UserDefined { attributes, .. } => {
                 attributes.get(&magic_method.to_string()).cloned()
             },
 
-            PyClass::Internal { methods, .. } => {
+            PyClass::Internal { magic_methods: methods, .. } => {
                 Some(PyPointer::new(PyObject::InternalSlot(methods.get_method(magic_method.clone())?)))
+            }
+        }
+    }
+    
+    pub fn search_for_method(&self, method_name: &str) -> Option<PyPointer<PyObject>> {
+        match self {
+            PyClass::UserDefined { attributes, .. } => {
+                attributes.get(method_name).cloned()
+            },
+
+            PyClass::Internal { magic_methods, attributes, .. } => {
+                let magic_method = PyMagicMethod::from_string(method_name);
+                if let Some(magic_method) = magic_method {
+                    let method = magic_methods.get_method(magic_method);
+                    
+                    if let Some(method) = method {
+                        return Some(PyPointer::new(PyObject::InternalSlot(method)));
+                    }
+                }
+                
+                attributes.get(method_name).cloned()
             }
         }
     }
@@ -301,44 +317,69 @@ pub struct PyFunction {
 }
 
 #[derive(Debug)]
-pub struct PyInstanceGeneric {
+pub struct PyInstance {
     class: Rc<PyClass>,
-    attributes: RwLock<HashMap<String, PyPointer<PyObject>>>,
-    // pub internal_storage: Vec<PyObject>
-
+    attributes: Option<HashMap<String, PyPointer<PyObject>>>,
+    pub internal: Box<dyn PyInstanceInternal>
 }
 
-pub trait PyInstance: mopa::Any + Debug {
-    // fn new(py_class: Rc<PyClass>) -> Self;
-    fn set_field(&mut self, key: String, value: PyPointer<PyObject>);
-    fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>>;
-    fn get_class(&self) -> Rc<PyClass>;
-}
-
-mopafy!(PyInstance);
-
-impl PyInstance for PyInstanceGeneric {
-    fn set_field(&mut self, key: String, value: PyPointer<PyObject>) {
-        let attributes = self.attributes.get_mut().unwrap_or_else(|e| panic!("Failed to get mutable attributes: {:?}", e));
-        let _old_value = attributes.insert(key, value);
-    }
-
-    fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>> {
-        let attributes = self.attributes.read().ok()?;
-        attributes.get(key).cloned()
-    }
-
-    fn get_class(&self) -> Rc<PyClass> {
-        self.class.clone()
-    }
-}
-
-impl PyInstanceGeneric {
-    fn new(py_class: Rc<PyClass>) -> Self {
-        PyInstanceGeneric {
-            class: py_class,
-            attributes: RwLock::new(HashMap::new()),
+impl PyInstance {
+    pub fn new_empty_attrs(class: Rc<PyClass>, internal: Box<dyn PyInstanceInternal>) -> PyInstance {
+        PyInstance {
+            class,
+            attributes: None,
+            internal
         }
+    }
+    pub fn new_empty(class: Rc<PyClass>) -> PyInstance{
+        PyInstance {
+            class,
+            attributes: None,
+            internal: Box::new(EmptyInternal {})
+        }
+    }
+    fn set_field(&mut self, key: String, value: PyPointer<PyObject>) -> Result<bool, PyException> {  // returns if an variable was overwritten (false means a new variable was set)
+        if let Some(ref mut attributes) = self.attributes {
+            let result = attributes.insert(key, value);  // TODO this shouldn't be used outside of object methods because it will allow for the setting of new attributes
+            return Ok(result.is_some());
+        }
+
+        self.internal.set_field(key, value)
+    }
+
+    fn get_field(&self, key: &str) -> Result<PyPointer<PyObject>, PyException> {
+        let mut attribute = None;
+        
+        if let Some(ref attributes) = self.attributes {
+            attribute = attributes.get(key).cloned();
+        }
+        
+        if let None = attribute {
+            return self.internal.get_field(key);
+        }
+        
+        attribute.ok_or(PyException::new("Attribute does not exist"))
+    }
+}
+
+
+#[derive(Debug)]
+pub struct EmptyInternal {}
+
+pub trait PyInstanceInternal: mopa::Any + Debug {
+    fn set_field(&mut self, key: String, value: PyPointer<PyObject>) -> Result<bool, PyException>;  // return field name is successful else exception
+    fn get_field(&self, key: &str) -> Result<PyPointer<PyObject>, PyException>;
+}
+
+mopafy!(PyInstanceInternal);
+
+impl PyInstanceInternal for EmptyInternal {
+    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) -> Result<bool, PyException> {
+        Err(PyException::new("Cannot set field for EmptyInternal"))
+    }
+
+    fn get_field(&self, _key: &str) -> Result<PyPointer<PyObject>, PyException> {
+        Err(PyException::new("Cannot get field for EmptyInternal"))
     }
 }
 
@@ -352,7 +393,7 @@ pub enum PyObject {
     // Dict(HashMap<String, PyObject>),
     Bool(bool),
     Class(Rc<PyClass>),
-    Instance(Box<dyn PyInstance>),
+    Instance(PyInstance),
     Function(PyFunction),
     Exception(PyException),
     InternalSlot(Rc<PyInternalFunction>),
@@ -363,7 +404,7 @@ pub enum PyObject {
 impl PyObject {
     pub fn get_class(&self, arena: &mut PyArena) -> Rc<PyClass> {
         match self {
-            PyObject::Instance(py_instance) => py_instance.get_class().clone(),
+            PyObject::Instance(py_instance) => py_instance.class.clone(),
             PyObject::Int(_) => arena.globals.int_class.clone(),
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
@@ -388,13 +429,13 @@ impl PyObject {
 
     pub fn get_magic_method(&self, py_magic_method: PyMagicMethod, arena: &mut PyArena) -> Option<PyPointer<PyObject>> {
         match self {
-            PyObject::Int(_value) => {arena.globals.int_class.search_for_attribute(py_magic_method)}  // TODO make better
+            PyObject::Int(_value) => {arena.globals.int_class.search_for_magic_method(py_magic_method)}  // TODO make better
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                instance.get_class().clone().search_for_attribute(py_magic_method)
+                instance.class.search_for_magic_method(py_magic_method)
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -404,15 +445,15 @@ impl PyObject {
         }
     }
 
-    pub fn get_attribute(&self, name: &str, arena: &mut PyArena) -> Option<PyPointer<PyObject>> {
+    pub fn get_attribute(&self, name: &str, arena: &mut PyArena) -> PyPointer<PyObject> {
         match self {
-            PyObject::Int(_value) => {arena.globals.int_class.search_for_attribute(PyMagicMethod::from_string(name)?)}  // TODO make better
+            PyObject::Int(_value) => {arena.globals.int_class.search_for_magic_method(PyMagicMethod::from_string(name).unwrap()).unwrap()}  // TODO make better
             PyObject::Float(_) => {todo!()}
             PyObject::Str(_) => {todo!()}
             PyObject::Bool(_) => {todo!()}
             PyObject::Class(_) => {todo!()}
             PyObject::Instance(instance) => {
-                instance.get_field(name)
+                instance.get_field(name).unwrap()
             }
             PyObject::Function(_) => {todo!()}
             PyObject::Exception(_) => {todo!()}
@@ -454,14 +495,14 @@ impl PyObject {
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
-    pub fn expect_instance(&self) -> &Box<dyn PyInstance> {
+    pub fn expect_instance(&self) -> &PyInstance {
         match self {
             PyObject::Instance(instance) => instance,
             _ => panic!("Expected internal slot"), // TODO make python error
         }
     }
     
-    pub fn expect_instance_mut(&mut self) -> &mut Box<dyn PyInstance> {
+    pub fn expect_instance_mut(&mut self) -> &mut PyInstance {
         match self {
             PyObject::Instance(instance) => instance,
             _ => panic!("Expected internal slot"), // TODO make python error

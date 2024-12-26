@@ -49,8 +49,8 @@ pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: Vec<PyPoint
 pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: Vec<PyPointer<PyObject>>, arena: &mut PyArena) -> PyPointer<PyObject> {
     // let pyclass_borrow = pyclass.borrow();
 
-    let new_func = pyclass.search_for_attribute(PyMagicMethod::New);
-    let init_func = pyclass.search_for_attribute(PyMagicMethod::Init);
+    let new_func = pyclass.search_for_magic_method(PyMagicMethod::New);
+    let init_func = pyclass.search_for_magic_method(PyMagicMethod::Init);
 
     if new_func.is_none() {
         panic!("{:?} has no __new__ method", pyclass); // TODO Make python error

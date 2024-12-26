@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use crate::builtins::pyobjects::PyPointer;
 use crate::builtins::pyobjects::*;
@@ -56,8 +57,8 @@ pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {
         name: "int".to_string(),
         super_classes: vec![object_class],
-
-        methods: PyMagicMethods {
+        attributes: HashMap::new(),
+        magic_methods: PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(int__new__ as NewFuncType)))),
             __init__: Some(Rc::new(InitFunc(&(int__init__ as InitFuncType)))),
 

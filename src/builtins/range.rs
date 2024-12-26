@@ -1,35 +1,31 @@
+use std::collections::HashMap;
 use std::fmt::{Debug};
 use std::rc::Rc;
 use crate::builtins::function_utils::init_internal_class;
 use crate::builtins::pyint::{expect_int_ptr};
-use crate::builtins::pyobjects::{py_magic_methods_defaults, NewFuncType, PyClass, PyFlag, PyInstance, PyMagicMethods, PyObject, PyPointer, UnaryFuncType};
+use crate::builtins::pyobjects::{py_magic_methods_defaults, NewFuncType, PyClass, PyException, PyFlag, PyInstance, PyInstanceInternal, PyMagicMethods, PyObject, PyPointer, UnaryFuncType};
 use crate::builtins::pyobjects::PyInternalFunction::{NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
 #[derive(Debug)]
 pub struct RangeInstance {
-    class: Rc<PyClass>,
     start: i64,
     stop: i64,
     step: i64
 }
 
-impl PyInstance for RangeInstance {
-    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) {
-        panic!("All attributes are readonly")
+impl PyInstanceInternal for RangeInstance {
+    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) -> Result<bool, PyException> {
+        Err(PyException::new("All attributes are readonly"))
     }
 
-    fn get_field(&self, key: &str) -> Option<PyPointer<PyObject>> {
+    fn get_field(&self, key: &str) -> Result<PyPointer<PyObject>, PyException> {
         match key {
-            "start" => Some(PyPointer::new(PyObject::Int(self.start))),
-            "stop" => Some(PyPointer::new(PyObject::Int(self.stop))),
-            "step" => Some(PyPointer::new(PyObject::Int(self.step))),
-            _ => None
+            "start" => Ok(PyPointer::new(PyObject::Int(self.start))),
+            "stop" => Ok(PyPointer::new(PyObject::Int(self.stop))),
+            "step" => Ok(PyPointer::new(PyObject::Int(self.step))),
+            _ => Err(PyException::new("Cannot find field"))
         }
-    }
-
-    fn get_class(&self) -> Rc<PyClass> {
-        self.class.clone()
     }
 }
 
@@ -53,25 +49,26 @@ pub fn range__new__(_arena: &mut PyArena, pyclass: Rc<PyClass>, args: Vec<PyPoin
         stop = first;
     }
     
-    PyPointer::new(PyObject::Instance(Box::new(RangeInstance {
-        class: pyclass,
-        start,
-        stop,
-        step,
-    })))
+    PyPointer::new(PyObject::Instance(PyInstance::new_empty_attrs(pyclass, Box::new(
+        RangeInstance {
+            start,
+            stop,
+            step, 
+        }
+    ))))
 }
 
 pub fn range__repr__(_arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let pyself = pyself.borrow();
     let instance = pyself.expect_instance();
 
-    let range_instance = instance.downcast_ref::<RangeInstance>();
+    let range_internal = instance.internal.downcast_ref::<RangeInstance>();
 
-    if let Some(range_instance) = range_instance {
-        if range_instance.step == 1 {
-            return PyPointer::new(PyObject::Str(format!("range({}, {})", range_instance.start, range_instance.stop)));
+    if let Some(range_internal) = range_internal {
+        if range_internal.step == 1 {
+            return PyPointer::new(PyObject::Str(format!("range({}, {})", range_internal.start, range_internal.stop)));
         }
-        PyPointer::new(PyObject::Str(format!("range({}, {}, {})", range_instance.start, range_instance.stop, range_instance.step)))
+        PyPointer::new(PyObject::Str(format!("range({}, {}, {})", range_internal.start, range_internal.stop, range_internal.step)))
     } else {
         panic!("Instance received is not of RangeInstance type, instead {:?}", instance)
     }
@@ -85,7 +82,8 @@ pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {
         name: "range".to_string(),
         super_classes: vec![object_class],
-        methods: PyMagicMethods {
+        attributes: HashMap::new(),
+        magic_methods: PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(range__new__ as NewFuncType)))),
             // __init__: Some(Rc::new(InitFunc(&(range__init__ as InitFuncType)))),
 
@@ -100,23 +98,18 @@ pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
 
 #[derive(Debug)]
 struct RangeIteratorInstance {
-    class: Rc<PyClass>,
     current: i64,
     stop: i64,
     step: i64
 }
 
-impl PyInstance for RangeIteratorInstance {
-    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) {
+impl PyInstanceInternal for RangeIteratorInstance {
+    fn set_field(&mut self, _key: String, _value: PyPointer<PyObject>) -> Result<bool, PyException> {
         panic!("range_iterator type has no public fields")
     }
 
-    fn get_field(&self, _key: &str) -> Option<PyPointer<PyObject>> {
+    fn get_field(&self, _key: &str) -> Result<PyPointer<PyObject>, PyException> {
         panic!("range_iterator type has no public fields")
-    }
-
-    fn get_class(&self) -> Rc<PyClass> {
-        self.class.clone()
     }
 }
 
@@ -127,25 +120,27 @@ pub fn range_iterator__new__(_arena: &mut PyArena, pyclass: Rc<PyClass>, args: V
     let range_obj = range_obj.borrow(); 
     let range_instance = range_obj.expect_instance();
 
-    let range_instance = range_instance.downcast_ref::<RangeInstance>().expect("arg instance should be of RangeInstance type");
-    PyPointer::new(PyObject::Instance(Box::new(RangeIteratorInstance {
-        class: pyclass,
-        current: range_instance.start,
-        stop: range_instance.stop,
-        step: range_instance.step,
-    })))
+    let range_internal = range_instance.internal.downcast_ref::<RangeInstance>().expect("arg instance should be of RangeInstance type");
+    PyPointer::new(PyObject::Instance(PyInstance::new_empty_attrs(
+        pyclass,
+        Box::new(RangeIteratorInstance {
+            current: range_internal.start,
+            stop: range_internal.stop,
+            step: range_internal.step,
+        })
+    )))
 }
 
 pub fn range_iterator__next__(_arena: &mut PyArena, pyself: PyPointer<PyObject>) -> PyPointer<PyObject> {
     let mut pyself = pyself.borrow_mut();
     let instance = pyself.expect_instance_mut();
     
-    if let Some(range_iterator_instance) = instance.downcast_mut::<RangeIteratorInstance>() {
-        let current = &mut range_iterator_instance.current;
-        let stop = range_iterator_instance.stop;
-        let step = range_iterator_instance.step;
+    if let Some(range_iterator_internal) = instance.internal.downcast_mut::<RangeIteratorInstance>() {
+        let current = &mut range_iterator_internal.current;
+        let stop = range_iterator_internal.stop;
+        let step = range_iterator_internal.step;
         
-        if *current >= stop {
+        if *current >= stop { // TODO make it depend on the sign of the step var
             return PyPointer::new(PyObject::InternalFlag(PyFlag::StopIteration));
         }
         
@@ -163,7 +158,8 @@ pub fn get_range_iterator_class(object_class: Rc<PyClass>) -> PyClass {
     PyClass::Internal {  // Hidden class
         name: "range_iterator".to_string(),
         super_classes: vec![object_class],
-        methods: PyMagicMethods {
+        attributes: HashMap::new(),
+        magic_methods: PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(range_iterator__new__ as NewFuncType)))),
             
             __next__: Some(Rc::new(UnaryFunc(&(range_iterator__next__ as UnaryFuncType)))),
