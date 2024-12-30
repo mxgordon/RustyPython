@@ -1,33 +1,30 @@
-use std::collections::HashMap;
+use ahash::AHashMap;
 use crate::builtins::globals::Globals;
-use crate::builtins::pyobjects::{PyObject, PyPointer};
+use crate::builtins::structure::pyexception::Exceptions;
+use crate::builtins::structure::pyobject::{PyObject, PyPointer};
 
 #[derive(Debug)]
 pub struct PyArena {
-    state: HashMap<String, PyPointer<PyObject>>,
+    state: AHashMap<String, PyPointer<PyObject>>,
     pub globals: Globals,
+    pub exceptions: Exceptions,
 }
 
 impl PyArena {
     pub fn new() -> Self {
         let globals = Globals::new();
+        let exceptions = Exceptions::new();
 
         PyArena {
             state: globals.load_into_hashmap(),
             globals,
+            exceptions
         }
     }
 
     pub fn set(&mut self, key: String, value: PyPointer<PyObject>) {
         self.state.insert(key, value);
     }
-    
-    // pub fn get_entry(&mut self, key: String) -> Entry<'_, String, PyPointer<PyObject>> {
-    //     self.state.entry(key)
-    // }
-    // pub fn get_entry2(&mut self, key: String, first_value: PyPointer<PyObject>) -> OccupiedEntry<String, PyPointer<PyObject>> {
-    //     self.state.entry(key).insert_entry(first_value)
-    // }
 
     pub fn get(&self, key: &str) -> Option<PyPointer<PyObject>> {
         self.state.get(key).cloned()

@@ -1,15 +1,18 @@
-use crate::builtins::pyobjects::{PyObject, PyPointer};
 use crate::builtins::str::py_str;
+use crate::builtins::structure::pyobject::{FuncReturnType, PyObject, PyPointer};
 use crate::pyarena::PyArena;
 
-pub fn py_print(arena: &mut PyArena, args: Vec<PyPointer<PyObject>>) -> PyPointer<PyObject> {
+pub fn py_print(arena: &mut PyArena, args: Vec<PyPointer<PyObject>>) -> FuncReturnType {
     let sep = " ";
+    let mut strs = Vec::new();
     
-    let strs: Vec<String> = args.iter().map(|arg| py_str(arg.clone(), arena).borrow().need_string()).collect();
+    for arg in args {
+        strs.push(py_str(arg, arena)?.borrow().expect_string());
+    }
     
     let result = strs.join(sep);
     
     println!("{}", result);
     
-    PyPointer::new(PyObject::None)
+    Ok(PyPointer::new(PyObject::None))
 }

@@ -1,4 +1,5 @@
 #![feature(fn_traits)]
+#![feature(let_chains)]
 
 mod parser;
 mod evaluator;
@@ -15,7 +16,7 @@ use crate::evaluator::{evaluate};
 extern crate mopa;
 
 fn main() {
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();

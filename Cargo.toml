@@ -9,6 +9,8 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 once_cell = "1.20.2"
 mopa = "0.2.2"
+ahas = "0.0.0"
+ahash = "0.8.11"
 
 [profile.release]
 debug = true

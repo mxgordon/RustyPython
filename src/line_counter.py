@@ -5,7 +5,7 @@ def get_rs_files(path: Path):
     files = []
     
     for name in os.listdir(path):
-        if os.path.isdir(name):
+        if os.path.isdir(path / name):
             files += get_rs_files(path / name)
         elif name.endswith('.rs'):
             files.append(path / name)

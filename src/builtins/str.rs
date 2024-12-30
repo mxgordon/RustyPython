@@ -1,12 +1,13 @@
-use crate::builtins::pyobjects::{PyInternalFunction, PyMagicMethod, PyObject, PyPointer};
+use crate::builtins::structure::magic_methods::PyMagicMethod;
+use crate::builtins::structure::pyobject::{FuncReturnType, PyInternalFunction, PyObject, PyPointer};
 use crate::pyarena::PyArena;
 
-pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObject> {
+pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> FuncReturnType {
     let obj = obj.clone();
     let str_fn = obj.borrow().get_magic_method(PyMagicMethod::Str, arena);
     
     if str_fn.is_none() {
-        panic!("Object has no __str__ method"); // TODO Make python error
+        panic!("Object has no __str__ method");
     }
     
     let str_fn = str_fn.unwrap();
@@ -27,7 +28,5 @@ pub fn py_str(obj: PyPointer<PyObject>, arena: &mut PyArena) -> PyPointer<PyObje
         _ => {panic!("Object has no __str__ method");}  // TODO Make python error
     }
     
-    //assert! TODO check if str_rtn is a string
-    
-    str_rtn
+    str_rtn  // TODO assert str_rtn is a string
 }
