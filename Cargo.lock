@@ -6,20 +6,12 @@ version = 3
 name = "RustyPython"
 version = "0.1.0"
 dependencies = [
- "ahas",
  "ahash",
  "mopa",
- "once_cell",
  "peg",
  "strum",
  "strum_macros",
 ]
-
-[[package]]
-name = "ahas"
-version = "0.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc9dee22acb57b0e6e29b8112a4328230ccef8df5edb36f1eca42da6e31894f1"
 
 [[package]]
 name = "ahash"
