@@ -6,7 +6,7 @@ use crate::builtins::pyfloat::get_float_class;
 use crate::builtins::pyint::{get_int_class};
 use crate::builtins::range::{get_range_class, get_range_iterator_class};
 use crate::builtins::structure::pyclass::PyClass;
-use crate::builtins::structure::pyobject::{ManyArgFuncType, PyInternalFunction, PyObject, PyPointer};
+use crate::builtins::structure::pyobject::{ManyArgFuncType, PyInternalFunction, PyObject};
 
 #[derive(Debug)]
 pub struct Globals {
@@ -37,13 +37,13 @@ impl Globals {
         }
     }
     
-    pub fn load_into_hashmap(&self) -> AHashMap<String, PyPointer<PyObject>> {
+    pub fn load_into_hashmap(&self) -> AHashMap<String, PyObject> {
         vec![
-            ("object".to_string(), PyPointer::new(PyObject::Class(self.object_class.clone()))),
-            ("int".to_string(), PyPointer::new(PyObject::Class(self.int_class.clone()))),
-            ("float".to_string(), PyPointer::new(PyObject::Class(self.float_class.clone()))),
-            ("range".to_string(), PyPointer::new(PyObject::Class(self.range_class.clone()))),
-            ("print".to_string(), PyPointer::new(PyObject::InternalSlot(self.print_func.clone()))),
+            ("object".to_string(), PyObject::new_internal_class(self.object_class.clone())),
+            ("int".to_string(), PyObject::new_internal_class(self.int_class.clone())),
+            ("float".to_string(), PyObject::new_internal_class(self.float_class.clone())),
+            ("range".to_string(), PyObject::new_internal_class(self.range_class.clone())),
+            ("print".to_string(), PyObject::new_internal_func(self.print_func.clone())),
         ].into_iter().collect()
     }
 }

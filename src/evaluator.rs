@@ -1,58 +1,50 @@
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{FuncReturnType, PyIteratorFlag, PyObject, PyPointer};
+use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyImmutableObject, PyIteratorFlag, PyObject};
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
 pub fn evaluate(code: CodeBlock) {
     let mut arena =  PyArena::new();
     
-    eval_code_block(&code, &mut arena);
+    eval_code_block(&code, &mut arena).unwrap();
 }
 
-fn eval_var(name: &str, arena: &PyArena) -> FuncReturnType {
+fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyException> {
     arena.get(name).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{name}' is not defined")))
 }
 
-fn eval_val(value: &Value) -> PyPointer<PyObject> {
+fn eval_val(value: &Value) -> PyObject {
     match value {
-        Value::Integer(value) => {
-            PyPointer::new(PyObject::Int(*value))
-        }
-        Value::Float(value) => {
-            PyPointer::new(PyObject::Float(*value))
-        }
-        Value::String(value) => {
-            PyPointer::new(PyObject::Str(value.clone()))
-        }
-        Value::Boolean(value) => {
-            PyPointer::new(PyObject::Bool(*value))
-        }
-        Value::None => {
-            PyPointer::new(PyObject::None)
-        }
+        Value::Integer(value) => PyObject::new_int(*value),
+        Value::Float(value) => PyObject::new_float(*value),
+        Value::String(value) => PyObject::new_string(value.clone()),
+        Value::Boolean(value) => PyObject::new_bool(*value),
+        Value::None => PyObject::none(),
     }
 }
 
 fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> FuncReturnType {
     let func = eval_expr(&*func, arena)?;
     
-    let mut py_args = vec![];
+    let args = args.iter().map(|arg| eval_expr(arg, arena)).collect::<Result<Vec<_>, _>>()?;
     
-    for arg in args {
-        py_args.push(eval_expr(arg, arena)?);
-    }
+    // let mut py_args: &[PyObject2; args.len()] = &[];
+    
+    // for arg in args {
+    //     py_args.push(eval_expr(arg, arena)?);
+    // }
 
-    match *func.clone().borrow() {
-        PyObject::Function(ref _func) => {
-            todo!()
+    match **func.expect_immutable() {
+        // PyImmutableObject::Function(ref _func) => { // TODO allow for calling of custom functions
+        //     todo!()
+        // }
+        PyImmutableObject::InternalSlot(ref func) => {
+            eval_internal_func(func.clone(), &args[..], arena)
         }
-        PyObject::InternalSlot(ref func) => {
-            eval_internal_func(func.clone(), py_args, arena)
-        }
-        PyObject::Class(ref pyclass) => {
-            eval_obj_init(pyclass.clone(), py_args, arena)
+        PyImmutableObject::InternalClass(ref pyclass) => {
+            eval_obj_init(pyclass.clone(), &args[..], arena)
         }
         _ => {
             panic!("{:?} is not a function", func); // TODO Make python error
@@ -60,26 +52,26 @@ fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> Fun
     }
 }
 
-fn call_method_of_pyobj_with_args(func_name: String, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
-    let magic_method = PyMagicMethod::from_string(func_name.as_str());
-
-    if let Some(magic_method) = magic_method {
-        return call_magic_method_of_pyobj_with_args(magic_method, pyobj_expr, args, arena);
-    }
-    
-    let pyobj = eval_expr(pyobj_expr, arena)?;
-    let mut pyargs = vec![];
-    
-    for arg in args {
-        pyargs.push(eval_expr(arg, arena)?);
-    }
-
-    let func = pyobj.borrow().get_attribute(func_name.clone().as_str(), arena);
-    let mut func_args = vec![pyobj];
-    func_args.extend(pyargs);
-
-    call_function(func, func_args, arena)
-}
+// fn call_method_of_pyobj_with_args(func_name: String, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
+//     let magic_method = PyMagicMethod::from_string(func_name.as_str());
+// 
+//     if let Some(magic_method) = magic_method {
+//         return call_magic_method_of_pyobj_with_args(magic_method, pyobj_expr, args, arena);
+//     }
+//     
+//     let pyobj = eval_expr(pyobj_expr, arena)?;
+//     let mut pyargs = vec![];
+//     
+//     for arg in args {
+//         pyargs.push(eval_expr(arg, arena)?);
+//     }
+// 
+//     let func = pyobj.get_attribute(func_name.clone().as_str(), arena);
+//     let mut func_args = vec![pyobj];
+//     func_args.extend(pyargs);
+// 
+//     call_function(func, func_args, arena)
+// }
 
 fn call_magic_method_of_pyobj_with_args(py_magic_method: PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
     let pyobj = eval_expr(pyobj_expr, arena)?;
@@ -89,20 +81,19 @@ fn call_magic_method_of_pyobj_with_args(py_magic_method: PyMagicMethod, pyobj_ex
         pyargs.push(eval_expr(arg, arena)?);
     }
 
-    let func = pyobj.borrow().get_magic_method(py_magic_method, arena).ok_or_else(|| { 
-        let message = format!("cannot find method '{py_magic_method}' in '{}' object", pyobj.borrow().get_class(arena).get_name());
+    let func = pyobj.get_magic_method(py_magic_method, arena).ok_or_else(|| { 
+        let message = format!("cannot find method '{py_magic_method}' in '{}' object", pyobj.clone_class(arena).get_name());
         arena.exceptions.type_error.instantiate(message) 
     })?;
     
-    let mut func_args = vec![pyobj];
-    func_args.extend(pyargs);
+    let func_args = [&[pyobj], &*pyargs].concat();
 
-    call_function(func, func_args, arena)
+    call_function(func, &func_args, arena)
 }
 
 fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
-        Expr::Var(name) => eval_var(name, arena),
+        Expr::Var(name) => eval_var(name, arena).cloned(),
         Expr::Val(value) => Ok(eval_val(value)),
         Expr::Times(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::Mul, first, vec![second], arena)}
         Expr::Divide(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::TrueDiv, first, vec![second], arena)} // TODO implement __div__ (prob not)
@@ -114,22 +105,22 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     }
 }
 
-fn eval_defn_var(name: String, expr: &Expr, arena: &mut PyArena) -> Result<(), PyException> {
+fn eval_defn_var(name: String, expr: &Expr, arena: &mut PyArena) -> EmptyFuncReturnType {
     let result = eval_expr(expr, arena)?;
     arena.set(name, result);
     
     Ok(())
 }
 
-fn eval_defn(define: &Define, arena: &mut PyArena) -> Result<(), PyException> {
+fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
         Define::PlusEq(var_name, expr) => {
             let other = eval_expr(expr, arena)?;
-            let variable = eval_var(var_name, arena)?;
+            let variable = eval_var(var_name, arena)?.clone();
 
-            let add_func = variable.borrow().get_magic_method(PyMagicMethod::Add, arena).unwrap_or_else(|| panic!("Object has no __add__ method"));  // TODO Make python error
+            let add_func = variable.get_magic_method(PyMagicMethod::Add, arena).unwrap_or_else(|| panic!("Object has no __add__ method"));  // TODO Make python error
 
-            let result = call_function(add_func, vec![variable, other], arena)?;
+            let result = call_function(add_func, &[variable, other], arena)?;
 
             arena.set(var_name.clone(), result);
             
@@ -143,25 +134,40 @@ fn eval_defn(define: &Define, arena: &mut PyArena) -> Result<(), PyException> {
     }
 }
 
+fn insert_into_entry_unsafe(entry_ptr: *mut PyObject, new_obj: PyObject) {
+    unsafe {
+        *entry_ptr = new_obj;
+    }
+}
+
 fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     let iterable = eval_expr(iter, arena)?;
-    let iter_func = iterable.borrow().get_magic_method(PyMagicMethod::Iter, arena).unwrap();  // TODO Make python error
+    let iter_func = iterable.get_magic_method(PyMagicMethod::Iter, arena).unwrap();  // TODO Make python error
     
-    let iterator = call_function(iter_func, vec![iterable], arena)?; 
+    let iterator = call_function(iter_func, &[iterable], arena)?; 
     
-    let next_func = iterator.borrow().get_magic_method(PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
+    let next_func = iterator.get_magic_method(PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
     
-    let mut next_func_rtn = call_function(next_func.clone(), vec![iterator.clone()], arena);
+    let mut next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
     let var_name = var.to_string();
+    
+    // arena.set(var_name.clone(), PyObject::none());
+    // let entry_ref = arena.get_mut_ref(&var_name).unwrap();
+    // 
+    // let entry_ptr = entry_ref as *mut PyObject;
 
 
     while let Ok(ref mut next_val) = next_func_rtn {
         arena.set(var_name.clone(), next_val.clone());
+        // entry.insert(next_val.clone());
+        // *entry_ref = next_val.clone();
+        
+        // insert_into_entry_unsafe(entry_ptr, next_val.clone());
         
         let code_result = eval_code_block(code, arena)?;
 
         if let Some(code_rtn) = code_result {
-            match *code_rtn.borrow() {
+            match code_rtn {
                 PyObject::IteratorFlag(ref flag_type) => {
                     match flag_type {
                         PyIteratorFlag::Break => break,
@@ -172,7 +178,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
             }
         }
 
-        next_func_rtn = call_function(next_func.clone(), vec![iterator.clone()], arena);
+        next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
         
     };
     arena.remove(var);  // clear iterator variable from scope
@@ -188,7 +194,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
 
 fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     for statement in code.statements.iter() {
-        let mut rtn_val: Option<PyPointer<PyObject>> = None;
+        let mut rtn_val: Option<PyObject> = None;
         match statement {
             Statement::Expr(expr) => {
                 let _result = eval_expr(expr, arena);
@@ -196,8 +202,8 @@ fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
             Statement::Defn(define) => eval_defn(define, arena)?,
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena)?,
             Statement::Return(rtn_expr) => rtn_val = Some(eval_expr(rtn_expr, arena)?),
-            Statement::Continue => rtn_val = Some(PyPointer::new(PyObject::IteratorFlag(PyIteratorFlag::Continue))),
-            Statement::Break => rtn_val = Some(PyPointer::new(PyObject::IteratorFlag(PyIteratorFlag::Break))),
+            Statement::Continue => rtn_val = Some(PyObject::continue_()),
+            Statement::Break => rtn_val = Some(PyObject::break_()),
         };
 
         if rtn_val.is_some() {
@@ -207,4 +213,4 @@ fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     Ok(None)
 }
 
-type CodeBlockReturn = Result<Option<PyPointer<PyObject>>, PyException>;
+type CodeBlockReturn = Result<Option<PyObject>, PyException>;
