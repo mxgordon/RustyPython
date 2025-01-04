@@ -118,25 +118,24 @@ fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
             let other = eval_expr(expr, arena)?;
             let variable = eval_var(var_name, arena)?.clone();
 
-            let add_func = variable.get_magic_method(PyMagicMethod::Add, arena).unwrap_or_else(|| panic!("Object has no __add__ method"));  // TODO Make python error
-
-            let result = call_function(add_func, &[variable, other], arena)?;
-
-            arena.set(var_name.clone(), result);
+            let add_func = variable.get_magic_method(PyMagicMethod::Add, arena);
             
-            Ok(())
+            if let Some(add_func) = add_func {
+                let result = call_function(add_func, &[variable, other], arena)?;
+
+                arena.update(var_name, result);
+
+                Ok(())
+            } else {
+                let message = format!("unsupported operand type(s) for +=: '{}' and '{}'", variable.clone_class(arena).get_name(), other.clone_class(arena).get_name());
+                Err(arena.exceptions.type_error.instantiate(message))
+            }
         }
         Define::MinusEq(_, _) => {todo!()}
         Define::DivEq(_, _) => {todo!()}
         Define::MultEq(_, _) => {todo!()}
         Define::VarDefn(name, expr) => { eval_defn_var(name.clone(), expr, arena) },
         Define::FunDefn(_, _, _) => {todo!()}
-    }
-}
-
-fn insert_into_entry_unsafe(entry_ptr: *mut PyObject, new_obj: PyObject) {
-    unsafe {
-        *entry_ptr = new_obj;
     }
 }
 
@@ -151,18 +150,14 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     let mut next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
     let var_name = var.to_string();
     
-    // arena.set(var_name.clone(), PyObject::none());
-    // let entry_ref = arena.get_mut_ref(&var_name).unwrap();
-    // 
-    // let entry_ptr = entry_ref as *mut PyObject;
-
+    arena.set(var_name.clone(), PyObject::none());  // set value to None to ensure it's occupied
+    
+    let cell = arena.get_cell(&var_name).expect("cell should exist").as_ptr();
 
     while let Ok(ref mut next_val) = next_func_rtn {
-        arena.set(var_name.clone(), next_val.clone());
-        // entry.insert(next_val.clone());
-        // *entry_ref = next_val.clone();
-        
-        // insert_into_entry_unsafe(entry_ptr, next_val.clone());
+        unsafe {  // ! I think this is chill
+            *cell = next_val.clone();
+        }
         
         let code_result = eval_code_block(code, arena)?;
 
@@ -185,7 +180,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     
     let err_val = next_func_rtn.expect_err("next_func_rtn needs to end with a type of error");
     
-    if !err_val.is_same_type(&*arena.exceptions.stop_iteration) {
+    if !err_val.is_same_type(&arena.exceptions.stop_iteration) {
         return Err(err_val);
     } 
 

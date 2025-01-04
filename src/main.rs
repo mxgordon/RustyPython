@@ -1,5 +1,6 @@
 #![feature(fn_traits)]
 #![feature(let_chains)]
+#![feature(hash_raw_entry)]
 
 mod parser;
 mod evaluator;
