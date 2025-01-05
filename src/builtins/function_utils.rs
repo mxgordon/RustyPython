@@ -94,8 +94,8 @@ pub(crate) fn eval_internal_func_1_arg_min(func: Rc<PyInternalFunction>, first_a
 
 
 pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    let new_func = pyclass.search_for_magic_method(PyMagicMethod::New);
-    let init_func = pyclass.search_for_magic_method(PyMagicMethod::Init);
+    let new_func = pyclass.search_for_magic_method(&PyMagicMethod::New);
+    let init_func = pyclass.search_for_magic_method(&PyMagicMethod::Init);
 
     if new_func.is_none() {
         panic!("{:?} has no __new__ method", pyclass); // TODO Make python error
@@ -114,8 +114,8 @@ pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut
 }
 
 pub(crate) fn init_internal_class(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    let new_func = pyclass.get_magic_method_internal(PyMagicMethod::New).unwrap();
-    let init_func = pyclass.get_magic_method_internal(PyMagicMethod::Init).unwrap();
+    let new_func = pyclass.get_magic_method_internal(&PyMagicMethod::New).unwrap();
+    let init_func = pyclass.get_magic_method_internal(&PyMagicMethod::Init).unwrap();
     
     let new_object = eval_internal_func_1_arg_min(new_func, &PyObject::new_internal_class(pyclass), &args, arena)?;
 

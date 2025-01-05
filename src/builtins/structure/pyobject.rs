@@ -71,7 +71,7 @@ impl PyObject {
         }
     }
     
-    pub fn get_magic_method(&self, py_magic_method: PyMagicMethod, arena: &mut PyArena) -> Option<PyObject> {
+    pub fn get_magic_method(&self, py_magic_method: &PyMagicMethod, arena: &mut PyArena) -> Option<PyObject> {
         match self {
             PyObject::Immutable(inner) => inner.get_magic_method(py_magic_method, arena),
             PyObject::Mutable(inner) => inner.borrow().get_magic_method(py_magic_method, arena),
@@ -105,7 +105,7 @@ impl PyImmutableObject {
         match self {
             PyImmutableObject::None => {todo!()}
             PyImmutableObject::Int(_) => {&arena.globals.int_class}
-            PyImmutableObject::Float(_) => {todo!()}
+            PyImmutableObject::Float(_) => {&arena.globals.float_class}
             PyImmutableObject::Bool(_) => {todo!()}
             PyImmutableObject::Str(_) => {todo!()}
             PyImmutableObject::InternalSlot(_) => {todo!()}
@@ -127,7 +127,7 @@ impl PyImmutableObject {
         }
     }
     
-    pub fn get_magic_method(&self, py_magic_method: PyMagicMethod, arena: &mut PyArena) -> Option<PyObject> {
+    pub fn get_magic_method(&self, py_magic_method: &PyMagicMethod, arena: &mut PyArena) -> Option<PyObject> {
         self.get_class(arena).search_for_magic_method(py_magic_method)
     }
 }
@@ -171,7 +171,7 @@ impl PyMutableObject {
     }
 
 
-    pub fn get_magic_method(&self, py_magic_method: PyMagicMethod, _arena: &mut PyArena) -> Option<PyObject> {
+    pub fn get_magic_method(&self, py_magic_method: &PyMagicMethod, _arena: &mut PyArena) -> Option<PyObject> {
         match self {
             // PyMutableObject::Class(_) => {todo!()}
             PyMutableObject::Instance(instance) => { instance.get_class().search_for_magic_method(py_magic_method) }

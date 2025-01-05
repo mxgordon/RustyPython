@@ -1,5 +1,23 @@
 use peg::*;
 
+pub fn remove_comments(input: &str) -> String {
+    let mut output = String::new();
+    let mut in_comment = false;
+    for c in input.chars() {
+        if in_comment {
+            if c == '\n' {
+                in_comment = false;
+                output.push(c);
+            }
+        } else if c == '#' {
+            in_comment = true;
+        } else {
+            output.push(c);
+        }
+    }
+    output
+}
+
 #[derive(Debug)]
 pub enum Value {
     Integer(i64),

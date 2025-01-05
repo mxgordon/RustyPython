@@ -44,7 +44,7 @@ impl PyException {
 
 impl Display for PyException {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Traceback (most recent call last):")?;
+        writeln!(f, "Traceback (most recent call last):")?;
         if let Some(traceback) = &self.traceback {
             for trace in traceback {
                 write!(f, "\n\t{}", trace)?;

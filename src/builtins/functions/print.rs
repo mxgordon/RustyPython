@@ -1,4 +1,4 @@
-use crate::builtins::str::py_str;
+use crate::builtins::str::py_str_tmp;
 use crate::builtins::structure::pyobject::{FuncReturnType, PyObject};
 use crate::pyarena::PyArena;
 
@@ -7,7 +7,7 @@ pub fn py_print(arena: &mut PyArena, args: &[PyObject]) -> FuncReturnType {
     let mut strs = Vec::new();
     
     for arg in args {
-        strs.push(py_str(arg, arena)?.expect_immutable().expect_string());
+        strs.push(py_str_tmp(arg, arena)?.expect_immutable().expect_string());
     }
     
     let result = strs.join(sep);

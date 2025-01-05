@@ -58,7 +58,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
                     continue;
                 }
 
-                if let Some(super_method) = self.search_for_magic_method_internal(magic_method_type.clone()) {
+                if let Some(super_method) = self.search_for_magic_method_internal(&magic_method_type) {
                     methods_to_set.push((magic_method_type, super_method));
                 }
 
@@ -79,21 +79,21 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         }
     }
 
-    pub fn search_for_magic_method_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
+    pub fn search_for_magic_method_internal(&self, magic_method: &PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         let search_result = match self {
             PyClass::UserDefined { .. } => {
                 panic!("UserDefined classes will not have internal methods")
             },
 
             PyClass::Internal { magic_methods: methods, .. } => {
-                methods.get_method(magic_method.clone())
+                methods.get_method(magic_method)
             }
 
         };
 
         if search_result.is_none() {
             for base_class in self.get_super_classes() {
-                let attr = base_class.search_for_magic_method_internal(magic_method.clone());
+                let attr = base_class.search_for_magic_method_internal(magic_method);
 
                 if attr.is_some() {
                     return attr.clone();
@@ -104,27 +104,27 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         search_result
     }
 
-    pub fn get_magic_method_internal(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
+    pub fn get_magic_method_internal(&self, magic_method: &PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         match self {
             PyClass::UserDefined { .. } => {
                 panic!("UserDefined classes will not have internal methods")
             },
 
             PyClass::Internal { magic_methods: methods, ..} => {
-                let attr = methods.get_method(magic_method.clone());
+                let attr = methods.get_method(magic_method);
                 attr
             }
         }
     }
 
-    pub fn search_for_magic_method(&self, magic_method: PyMagicMethod) -> Option<PyObject> {
+    pub fn search_for_magic_method(&self, magic_method: &PyMagicMethod) -> Option<PyObject> {
         match self {
             PyClass::UserDefined { attributes, .. } => {
                 attributes.get(&magic_method.to_string()).cloned()
             },
 
             PyClass::Internal { magic_methods: methods, .. } => {
-                Some(PyObject::new_immutable(PyImmutableObject::InternalSlot(methods.get_method(magic_method.clone())?)))
+                Some(PyObject::new_immutable(PyImmutableObject::InternalSlot(methods.get_method(&magic_method)?)))
             }
         }
     }
@@ -138,7 +138,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
             PyClass::Internal { magic_methods, attributes, .. } => {
                 let magic_method = PyMagicMethod::from_string(method_name);
                 if let Some(magic_method) = magic_method {
-                    let method = magic_methods.get_method(magic_method);
+                    let method = magic_methods.get_method(&magic_method);
 
                     if let Some(method) = method {
                         return Some(PyObject::new_immutable(PyImmutableObject::InternalSlot(method)));

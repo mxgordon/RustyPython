@@ -12,12 +12,13 @@ use std::fs::File;
 use std::io::Read;
 use parser::python_parser;
 use crate::evaluator::{evaluate};
+use crate::parser::remove_comments;
 
 #[macro_use]
 extern crate mopa;
 
 fn main() {
-    // env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();
@@ -33,14 +34,17 @@ fn main() {
 
         let _ = file.read_to_string(&mut contents);
     }
+    let contents = remove_comments(&contents);
+    let contents = contents.trim();
     
-    let parse_tree = python_parser::code(contents.trim(), 0);
+    let parse_tree = python_parser::code(contents, 0);
     if let Ok(parse_tree) = parse_tree {
+        
+        println!("{:?}", parse_tree);
         
         evaluate(parse_tree);
         
     } else if let Err(parse_tree_err) = parse_tree {
         println!("Char: \"{}\"({})\nError: {:?}", contents.chars().nth(parse_tree_err.location.offset).unwrap_or_default(), contents.bytes().nth(parse_tree_err.location.offset).unwrap_or_default(), parse_tree_err);
     }
-    return;
 }

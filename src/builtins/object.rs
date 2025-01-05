@@ -41,7 +41,7 @@ pub fn object__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType 
 }
 
 pub fn object__str__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
-    let str_func = pyself.get_magic_method(PyMagicMethod::Repr, arena).expect("__repr__ should always be defined");
+    let str_func = pyself.get_magic_method(&PyMagicMethod::Repr, arena).expect("__repr__ should always be defined");
     call_function(str_func, &[pyself.clone()], arena)
 }
 

@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 use ahash::AHashMap;
 use crate::builtins::object::{get_object_class};
-use crate::builtins::print::py_print;
+use crate::builtins::functions::print::{py_print};
 use crate::builtins::pyfloat::get_float_class;
 use crate::builtins::pyint::{get_int_class};
 use crate::builtins::range::{get_range_class, get_range_iterator_class};

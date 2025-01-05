@@ -1,7 +1,7 @@
 use std::cell::Cell;
-use std::collections::hash_map::{Keys, RawEntryMut};
+use std::collections::hash_map::{RawEntryMut};
 use std::hash::BuildHasher;
-use ahash::{AHashMap, RandomState};
+use ahash::{AHashMap};
 use crate::builtins::globals::Globals;
 use crate::builtins::structure::pyexception::Exceptions;
 use crate::builtins::structure::pyobject::{PyObject};

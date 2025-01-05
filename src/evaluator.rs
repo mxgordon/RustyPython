@@ -1,5 +1,7 @@
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
+use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
+use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, TrueDiv};
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyImmutableObject, PyIteratorFlag, PyObject};
 use crate::parser::*;
@@ -8,7 +10,11 @@ use crate::pyarena::PyArena;
 pub fn evaluate(code: CodeBlock) {
     let mut arena =  PyArena::new();
     
-    eval_code_block(&code, &mut arena).unwrap();
+    let code_result = eval_code_block(&code, &mut arena);
+    
+    if let Err(err) = code_result {
+        println!("{}", err);
+    }
 }
 
 fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyException> {
@@ -29,12 +35,6 @@ fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> Fun
     let func = eval_expr(&*func, arena)?;
     
     let args = args.iter().map(|arg| eval_expr(arg, arena)).collect::<Result<Vec<_>, _>>()?;
-    
-    // let mut py_args: &[PyObject2; args.len()] = &[];
-    
-    // for arg in args {
-    //     py_args.push(eval_expr(arg, arena)?);
-    // }
 
     match **func.expect_immutable() {
         // PyImmutableObject::Function(ref _func) => { // TODO allow for calling of custom functions
@@ -73,7 +73,7 @@ fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> Fun
 //     call_function(func, func_args, arena)
 // }
 
-fn call_magic_method_of_pyobj_with_args(py_magic_method: PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
+fn call_magic_method_of_pyobj_with_args(py_magic_method: &PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
     let pyobj = eval_expr(pyobj_expr, arena)?;
     let mut pyargs = vec![];
     
@@ -95,12 +95,12 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
         Expr::Var(name) => eval_var(name, arena).cloned(),
         Expr::Val(value) => Ok(eval_val(value)),
-        Expr::Times(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::Mul, first, vec![second], arena)}
-        Expr::Divide(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::TrueDiv, first, vec![second], arena)} // TODO implement __div__ (prob not)
-        Expr::Plus(first, second) => call_magic_method_of_pyobj_with_args(PyMagicMethod::Add, first, vec![second], arena),
-        Expr::Minus(first, second) => {call_magic_method_of_pyobj_with_args(PyMagicMethod::Sub, first, vec![second], arena)}
+        Expr::Times(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Mul {right: false}, arena)},
+        Expr::Divide(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena)} // TODO implement __div__ (prob not)
+        Expr::Plus(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Add {right: false}, arena)},
+        Expr::Minus(first, second) => {todo!()}
         Expr::Comparison(_first, _comp, _second) => {todo!()}
-        Expr::Pow(first, second) => call_magic_method_of_pyobj_with_args(PyMagicMethod::Pow, first, vec![second], arena),
+        Expr::Pow(first, second) => todo!(),
         Expr::FunCall(name, args) => eval_fun_call(name, args, arena)
     }
 }
@@ -115,21 +115,10 @@ fn eval_defn_var(name: String, expr: &Expr, arena: &mut PyArena) -> EmptyFuncRet
 fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
         Define::PlusEq(var_name, expr) => {
-            let other = eval_expr(expr, arena)?;
-            let variable = eval_var(var_name, arena)?.clone();
-
-            let add_func = variable.get_magic_method(PyMagicMethod::Add, arena);
+            let new_value = math_op(eval_var(var_name, arena)?.clone(), eval_expr(expr, arena)?, Add {right: false}, arena)?;
             
-            if let Some(add_func) = add_func {
-                let result = call_function(add_func, &[variable, other], arena)?;
-
-                arena.update(var_name, result);
-
-                Ok(())
-            } else {
-                let message = format!("unsupported operand type(s) for +=: '{}' and '{}'", variable.clone_class(arena).get_name(), other.clone_class(arena).get_name());
-                Err(arena.exceptions.type_error.instantiate(message))
-            }
+            arena.update(var_name, new_value);
+            Ok(())
         }
         Define::MinusEq(_, _) => {todo!()}
         Define::DivEq(_, _) => {todo!()}
@@ -141,11 +130,11 @@ fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
 
 fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     let iterable = eval_expr(iter, arena)?;
-    let iter_func = iterable.get_magic_method(PyMagicMethod::Iter, arena).unwrap();  // TODO Make python error
+    let iter_func = iterable.get_magic_method(&PyMagicMethod::Iter, arena).unwrap();  // TODO Make python error
     
     let iterator = call_function(iter_func, &[iterable], arena)?; 
     
-    let next_func = iterator.get_magic_method(PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
+    let next_func = iterator.get_magic_method(&PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
     
     let mut next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
     let var_name = var.to_string();
@@ -192,7 +181,7 @@ fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
         let mut rtn_val: Option<PyObject> = None;
         match statement {
             Statement::Expr(expr) => {
-                let _result = eval_expr(expr, arena);
+                eval_expr(expr, arena)?;
             }
             Statement::Defn(define) => eval_defn(define, arena)?,
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena)?,

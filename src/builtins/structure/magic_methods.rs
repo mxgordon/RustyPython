@@ -6,13 +6,16 @@ use crate::builtins::structure::pyobject::PyInternalFunction;
 pub enum PyMagicMethod {
     New,
     Init,
+    
     Str,
     Repr,
-    Add,
-    Sub,
-    Mul,
-    TrueDiv,
-    Pow,
+    
+    Add {right: bool},
+    Sub {right: bool},
+    Mul {right: bool},
+    TrueDiv {right: bool},
+    Pow {right: bool},
+    
     Iter,
     Next,
 }
@@ -24,11 +27,11 @@ impl PyMagicMethod {
             PyMagicMethod::Init => methods.__init__.clone(),
             PyMagicMethod::Str => methods.__str__.clone(),
             PyMagicMethod::Repr => methods.__repr__.clone(),
-            PyMagicMethod::Add => methods.__add__.clone(),
-            PyMagicMethod::Sub => methods.__sub__.clone(),
-            PyMagicMethod::Mul => methods.__mul__.clone(),
-            PyMagicMethod::TrueDiv => methods.__truediv__.clone(),
-            PyMagicMethod::Pow => methods.__pow__.clone(),
+            PyMagicMethod::Add {right} => if *right {methods.__radd__.clone()} else { methods.__add__.clone() },
+            PyMagicMethod::Sub {right} => if *right {methods.__rsub__.clone()} else { methods.__sub__.clone() },
+            PyMagicMethod::Mul {right} => if *right {methods.__rmul__.clone()} else { methods.__mul__.clone() },
+            PyMagicMethod::TrueDiv {right} => if *right {methods.__rtruediv__.clone()} else { methods.__truediv__.clone() },
+            PyMagicMethod::Pow {right} => if *right {methods.__rpow__.clone()} else { methods.__pow__.clone() },
             PyMagicMethod::Iter => methods.__iter__.clone(),
             PyMagicMethod::Next => methods.__next__.clone(),
         }
@@ -40,11 +43,11 @@ impl PyMagicMethod {
             PyMagicMethod::Init => &mut methods.__init__,
             PyMagicMethod::Str => &mut methods.__str__,
             PyMagicMethod::Repr => &mut methods.__repr__,
-            PyMagicMethod::Add => &mut methods.__add__,
-            PyMagicMethod::Sub => &mut methods.__sub__,
-            PyMagicMethod::Mul => &mut methods.__mul__,
-            PyMagicMethod::TrueDiv => &mut methods.__truediv__,
-            PyMagicMethod::Pow => &mut methods.__pow__,
+            PyMagicMethod::Add {right} => if *right {&mut methods.__radd__} else { &mut methods.__add__ },
+            PyMagicMethod::Sub {right} => if *right {&mut methods.__rsub__} else { &mut methods.__sub__ },
+            PyMagicMethod::Mul {right} => if *right {&mut methods.__rmul__} else { &mut methods.__mul__ },
+            PyMagicMethod::TrueDiv {right} => if *right {&mut methods.__rtruediv__} else { &mut methods.__truediv__ },
+            PyMagicMethod::Pow {right} => if *right {&mut methods.__rpow__} else { &mut methods.__pow__ },
             PyMagicMethod::Iter => &mut methods.__iter__,
             PyMagicMethod::Next => &mut methods.__next__,
         }
@@ -56,11 +59,11 @@ impl PyMagicMethod {
             PyMagicMethod::Init => "__init__",
             PyMagicMethod::Str => "__str__",
             PyMagicMethod::Repr => "__repr__",
-            PyMagicMethod::Add => "__add__",
-            PyMagicMethod::Sub => "__sub__",
-            PyMagicMethod::Mul => "__mul__",
-            PyMagicMethod::TrueDiv => "__truediv__",
-            PyMagicMethod::Pow => "__pow__",
+            PyMagicMethod::Add{right} => if *right {"__radd__"} else {"__add__"},
+            PyMagicMethod::Sub{right} => if *right {"__rsub__"} else {"__sub__"},
+            PyMagicMethod::Mul{right} => if *right {"__rmul__"} else {"__mul__"},
+            PyMagicMethod::TrueDiv{right} => if *right {"__rtruediv__"} else {"__truediv__"},
+            PyMagicMethod::Pow{right} => if *right {"__rpow__"} else {"__pow__"},
             PyMagicMethod::Iter => "__iter__",
             PyMagicMethod::Next => "__next__",
         }
@@ -73,14 +76,30 @@ impl PyMagicMethod {
             "__init__" => Some(PyMagicMethod::Init),
             "__str__" => Some(PyMagicMethod::Str),
             "__repr__" => Some(PyMagicMethod::Repr),
-            "__add__" => Some(PyMagicMethod::Add),
-            "__sub__" => Some(PyMagicMethod::Sub),
-            "__mul__" => Some(PyMagicMethod::Mul),
-            "__truediv__" => Some(PyMagicMethod::TrueDiv),
-            "__pow__" => Some(PyMagicMethod::Pow),
+            "__add__" => Some(PyMagicMethod::Add{right: false}),
+            "__sub__" => Some(PyMagicMethod::Sub{right: false}),
+            "__mul__" => Some(PyMagicMethod::Mul{right: false}),
+            "__truediv__" => Some(PyMagicMethod::TrueDiv{right: false}),
+            "__pow__" => Some(PyMagicMethod::Pow{right: false}),
+            "__radd__" => Some(PyMagicMethod::Add{right: true}),
+            "__rsub__" => Some(PyMagicMethod::Sub{right: true}),
+            "__rmul__" => Some(PyMagicMethod::Mul{right: true}),
+            "__rtruediv__" => Some(PyMagicMethod::TrueDiv{right: true}),
+            "__rpow__" => Some(PyMagicMethod::Pow{right: true}),
             "__iter__" => Some(PyMagicMethod::Iter),
             "__next__" => Some(PyMagicMethod::Next),
             _ => None,
+        }
+    }
+    
+    pub fn make_right_handed(&mut self) {
+        match self {
+            PyMagicMethod::Add{right} => *right = true,
+            PyMagicMethod::Sub{right} => *right = true,
+            PyMagicMethod::Mul{right} => *right = true,
+            PyMagicMethod::TrueDiv{right} => *right = true,
+            PyMagicMethod::Pow{right} => *right = true,
+            _ => {panic!("Cannot make `{}` right handed", self.as_str())},
         }
     }
 }
@@ -102,6 +121,12 @@ pub struct PyMagicMethods {
     pub __mul__: Option<Rc<PyInternalFunction>>,
     pub __truediv__: Option<Rc<PyInternalFunction>>,
     pub __pow__: Option<Rc<PyInternalFunction>>,
+    // Right-hand math functions
+    pub __radd__: Option<Rc<PyInternalFunction>>,
+    pub __rsub__: Option<Rc<PyInternalFunction>>,
+    pub __rmul__: Option<Rc<PyInternalFunction>>,
+    pub __rtruediv__: Option<Rc<PyInternalFunction>>,
+    pub __rpow__: Option<Rc<PyInternalFunction>>,
 
     // Iterating functions
     pub __iter__: Option<Rc<PyInternalFunction>>,
@@ -114,18 +139,26 @@ pub const fn py_magic_methods_defaults() -> PyMagicMethods {
         __init__: None,
         __str__: None,
         __repr__: None,
+        
         __add__: None,
         __sub__: None,
         __mul__: None,
         __truediv__: None,
         __pow__: None,
+        
+        __radd__: None,
+        __rsub__: None,
+        __rmul__: None,
+        __rtruediv__: None,
+        __rpow__: None,
+        
         __iter__: None,
         __next__: None,
     }
 }
 
 impl PyMagicMethods {
-    pub fn get_method(&self, magic_method: PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
+    pub fn get_method(&self, magic_method: &PyMagicMethod) -> Option<Rc<PyInternalFunction>> {
         magic_method.get_method(self)
     }
 

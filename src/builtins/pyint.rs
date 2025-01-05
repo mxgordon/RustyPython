@@ -17,6 +17,22 @@ pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyExcept
     }
 }
 
+pub fn expect_int_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyException> {
+    match **pyobj.expect_immutable() {
+        PyImmutableObject::Int(ref value) => {Ok(*value)}
+        PyImmutableObject::Bool(ref value) => {Ok(*value as i64)}
+        ref value => {
+            Err(arena.exceptions.not_implemented_error.empty())
+        },
+    }
+}
+
+pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut PyArena) -> Result<(i64, i64), PyException> {
+    let self_value = expect_int(pyself, arena)?;
+    let other_value = expect_int_promotion(other, arena)?;
+    Ok((self_value, other_value))
+}
+
 pub fn int__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {  // error handling
     let value = pyargs.first().unwrap();
     
@@ -34,31 +50,59 @@ pub fn int__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject
 }
 
 pub fn int__add__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
-    let self_value = expect_int(&pyself, arena)?;
-    let other_value = expect_int(&other, arena)?;  // TODO make this work for other types (float)
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
     
     Ok(PyObject::new_int(self_value + other_value))
 }
 
+pub fn int__sub__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
+    
+    Ok(PyObject::new_int(self_value - other_value))
+}
+
+pub fn int__rsub__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
+    
+    Ok(PyObject::new_int(other_value - self_value))
+}
+
 pub fn int__mul__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
-    let self_value = expect_int(&pyself, arena)?;
-    let other_value = expect_int(&other, arena)?;  // TODO make this work for other types (float)
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
     Ok(PyObject::new_int(self_value * other_value))
 }
 
 pub fn int__truediv__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
-    let self_value = expect_int(&pyself, arena)?;
-    let other_value = expect_int(&other, arena)?;  // TODO make this work for other types (float)
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
     Ok(PyObject::new_float(self_value as f64 / other_value as f64))
 }
 
+pub fn int__rtruediv__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
+
+    Ok(PyObject::new_float(other_value as f64 / self_value as f64))
+}
+
 pub fn int__pow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
-    let self_value = expect_int(&pyself, arena)?;
-    let other_value = expect_int(&other, arena)?;  // TODO make this work for other types (float)
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
+    
+    if other_value < 0 {
+        return Ok(PyObject::new_float((self_value as f64).powf(other_value as f64)));
+    }
 
     Ok(PyObject::new_int(self_value.pow(other_value as u32)))
+}
+
+pub fn int__rpow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
+    let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
+    
+    if other_value < 0 {
+        return Ok(PyObject::new_float((other_value as f64).powf(self_value as f64)));
+    }
+
+    Ok(PyObject::new_int(other_value.pow(self_value as u32)))
 }
 
 pub fn int__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
@@ -77,9 +121,15 @@ pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {
             __repr__: Some(Rc::new(UnaryFunc(&(int__repr__ as UnaryFuncType)))),
             
             __add__: Some(Rc::new(BivariateFunc(&(int__add__ as BivariateFuncType)))),
+            __radd__: Some(Rc::new(BivariateFunc(&(int__add__ as BivariateFuncType)))),
+            __sub__: Some(Rc::new(BivariateFunc(&(int__sub__ as BivariateFuncType)))),
+            __rsub__: Some(Rc::new(BivariateFunc(&(int__rsub__ as BivariateFuncType)))),
             __mul__: Some(Rc::new(BivariateFunc(&(int__mul__ as BivariateFuncType)))),
+            __rmul__: Some(Rc::new(BivariateFunc(&(int__mul__ as BivariateFuncType)))),
             __truediv__: Some(Rc::new(BivariateFunc(&(int__truediv__ as BivariateFuncType)))),
+            __rtruediv__: Some(Rc::new(BivariateFunc(&(int__rtruediv__ as BivariateFuncType)))),
             __pow__: Some(Rc::new(BivariateFunc(&(int__pow__ as BivariateFuncType)))),
+            __rpow__: Some(Rc::new(BivariateFunc(&(int__rpow__ as BivariateFuncType)))),
 
             ..py_magic_methods_defaults()
         }
