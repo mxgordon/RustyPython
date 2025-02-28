@@ -1,6 +1,6 @@
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::builtins::object::expect_class;
+use crate::builtins::types::object::expect_class;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyobject::{FuncReturnType, PyInternalFunction, PyInternalObject, PyMutableObject, PyObject};

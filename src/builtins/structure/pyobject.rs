@@ -119,7 +119,7 @@ pub enum PyImmutableObject {
 impl PyImmutableObject {
     pub fn get_class<'a>(&self, arena: &'a mut PyArena) -> &'a Rc<PyClass> {
         match self {
-            PyImmutableObject::None => {todo!()}
+            PyImmutableObject::None => {&arena.globals.none_class}
             PyImmutableObject::Int(_) => {&arena.globals.int_class}
             PyImmutableObject::Float(_) => {&arena.globals.float_class}
             PyImmutableObject::Bool(_) => {&arena.globals.bool_class}

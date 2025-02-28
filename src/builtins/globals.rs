@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 use ahash::AHashMap;
-use crate::builtins::object::{get_object_class};
+use crate::builtins::types::object::{get_object_class};
 use crate::builtins::functions::print::{py_print};
 use crate::builtins::types::pybool::get_bool_class;
 use crate::builtins::types::pyfloat::get_float_class;
@@ -9,10 +9,12 @@ use crate::builtins::types::pyint::{get_int_class};
 use crate::builtins::types::range::{get_range_class, get_range_iterator_class};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyobject::{ManyArgFuncType, PyInternalFunction, PyObject};
+use crate::builtins::types::pynone::get_none_class;
 
 #[derive(Debug)]
 pub struct Globals {
     pub object_class: Rc<PyClass>,
+    pub none_class: Rc<PyClass>,
     pub int_class: Rc<PyClass>,
     pub bool_class: Rc<PyClass>,
     pub float_class: Rc<PyClass>,
@@ -24,6 +26,7 @@ pub struct Globals {
 impl Globals {
     pub(crate) fn new() -> Globals {
         let object_class = Rc::new(get_object_class());
+        let none_class = Rc::new(get_none_class(object_class.clone()));
         let float_class = Rc::new(get_float_class(object_class.clone()));
 
         let int_class = Rc::new(get_int_class(object_class.clone()));
@@ -34,6 +37,7 @@ impl Globals {
         
         Globals {
             object_class,
+            none_class,
             int_class,
             bool_class,
             float_class,
