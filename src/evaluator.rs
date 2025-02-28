@@ -2,7 +2,7 @@ use crate::builtins::function_utils::{call_function, eval_internal_func, eval_ob
 use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
-use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, TrueDiv};
+use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, Pow, Sub, TrueDiv};
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
 use crate::parser::*;
@@ -100,13 +100,13 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
         Expr::Var(name) => eval_var(name, arena).cloned(),
         Expr::Val(value) => Ok(eval_val(value)),
-        Expr::Times(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Mul {right: false}, arena)},
-        Expr::Divide(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena)} // TODO implement __div__ (prob not)
-        Expr::Plus(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Add {right: false}, arena)},
-        Expr::Minus(first, second) => {todo!()}
-        Expr::Comparison(first, comp, second) => {compare_op(&eval_expr(first, arena)?, &eval_expr(second, arena)?, comp, arena)},
-        Expr::Pow(first, second) => todo!(),
-        Expr::FunCall(name, args) => eval_fun_call(name, args, arena)
+        Expr::Times(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Mul {right: false}, arena),
+        Expr::Divide(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena), // TODO implement __div__ (prob not)
+        Expr::Plus(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Add {right: false}, arena),
+        Expr::Minus(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Sub {right: false}, arena),
+        Expr::Pow(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Pow {right: false}, arena),
+        Expr::Comparison(first, comp, second) => compare_op(&eval_expr(first, arena)?, &eval_expr(second, arena)?, comp, arena),
+        Expr::FunCall(name, args) => eval_fun_call(name, args, arena),
     }
 }
 
@@ -117,17 +117,21 @@ fn eval_defn_var(name: String, expr: &Expr, arena: &mut PyArena) -> EmptyFuncRet
     Ok(())
 }
 
+fn eval_op_equals(var_name: &String, expr: &Expr, op: PyMagicMethod, arena: &mut PyArena) -> EmptyFuncReturnType {
+    // TODO check if in-place funcs are defined and use them if so
+    let new_value = math_op(eval_var(var_name, arena)?.clone(), eval_expr(expr, arena)?, op, arena)?;
+    
+    arena.update(var_name, new_value);
+    
+    Ok(())
+}
+
 fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
-        Define::PlusEq(var_name, expr) => {
-            let new_value = math_op(eval_var(var_name, arena)?.clone(), eval_expr(expr, arena)?, Add {right: false}, arena)?;
-            
-            arena.update(var_name, new_value);
-            Ok(())
-        }
-        Define::MinusEq(_, _) => {todo!()}
-        Define::DivEq(_, _) => {todo!()}
-        Define::MultEq(_, _) => {todo!()}
+        Define::PlusEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
+        Define::MinusEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
+        Define::DivEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
+        Define::MultEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
         Define::VarDefn(name, expr) => { eval_defn_var(name.clone(), expr, arena) },
         Define::FunDefn(_, _, _) => {todo!()}
     }
