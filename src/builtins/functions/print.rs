@@ -1,4 +1,4 @@
-use crate::builtins::str::py_str_tmp;
+use crate::builtins::types::str::py_str_tmp;
 use crate::builtins::structure::pyobject::{FuncReturnType, PyObject};
 use crate::pyarena::PyArena;
 

@@ -3,7 +3,7 @@ use std::fmt::{Debug};
 use std::rc::Rc;
 use ahash::AHashMap;
 use crate::builtins::function_utils::init_internal_class;
-use crate::builtins::pyint::expect_int;
+use crate::builtins::types::pyint::expect_int;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyinstance::{PyInstance, PyInstanceInternal};

@@ -3,10 +3,10 @@ use std::rc::Rc;
 use ahash::AHashMap;
 use crate::builtins::object::{get_object_class};
 use crate::builtins::functions::print::{py_print};
-use crate::builtins::pybool::get_bool_class;
-use crate::builtins::pyfloat::get_float_class;
-use crate::builtins::pyint::{get_int_class};
-use crate::builtins::range::{get_range_class, get_range_iterator_class};
+use crate::builtins::types::pybool::get_bool_class;
+use crate::builtins::types::pyfloat::get_float_class;
+use crate::builtins::types::pyint::{get_int_class};
+use crate::builtins::types::range::{get_range_class, get_range_iterator_class};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyobject::{ManyArgFuncType, PyInternalFunction, PyObject};
 

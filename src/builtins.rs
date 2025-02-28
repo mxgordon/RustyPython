@@ -1,10 +1,6 @@
 pub mod object;
-pub mod pyint;
-pub mod range;
-pub mod str;
 pub mod function_utils;
 pub mod globals;
-pub mod pyfloat;
 pub mod structure;
 pub mod functions;
-pub mod pybool;
+pub mod types;
