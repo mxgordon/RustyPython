@@ -3,16 +3,15 @@ use std::rc::Rc;
 use crate::builtins::object::expect_class;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyclass::PyClass;
-use crate::builtins::structure::pyobject::{FuncReturnType, PyImmutableObject, PyInternalFunction, PyMutableObject, PyObject};
+use crate::builtins::structure::pyobject::{FuncReturnType, PyInternalFunction, PyInternalObject, PyMutableObject, PyObject};
 use crate::pyarena::PyArena;
 
 pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
     match func {
-        PyObject::Immutable(inner) => {
-            match &*inner {
-                PyImmutableObject::InternalSlot(func) => eval_internal_func(func.clone(), args, arena),
-                PyImmutableObject::InternalClass(pyclass) => eval_obj_init(pyclass.clone(), args, arena),
-                _ => {panic!("Immutable object is not a function")}
+        PyObject::Internal(inner) => {
+            match inner {
+                PyInternalObject::InternalFunction(func) => eval_internal_func(func, args, arena),
+                PyInternalObject::InternalClass(pyclass) => eval_obj_init(pyclass, args, arena)
             }
         }
         PyObject::Mutable(inner) => {
@@ -21,17 +20,16 @@ pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> 
                 _ => {panic!("Mutable object is not a function")}
             }
         }
-        PyObject::IteratorFlag(_) => {panic!("IteratorFlag is not a function")}
+        other => {panic!("{:?} is not a function", other)}
     }
 }
 
 pub fn call_function_1_arg_min(func: PyObject, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
     match func {
-        PyObject::Immutable(inner) => {
-            match &*inner {
-                PyImmutableObject::InternalSlot(func) => eval_internal_func_1_arg_min(func.clone(), first_arg, args, arena),
-                PyImmutableObject::InternalClass(_pyclass) => panic!("This function should not be used to initialize a class"),
-                _ => {panic!("Immutable object is not a function")}
+        PyObject::Internal(inner) => {
+            match inner {
+                PyInternalObject::InternalFunction(func) => eval_internal_func_1_arg_min(func, first_arg, args, arena),
+                PyInternalObject::InternalClass(_pyclass) => panic!("This function should not be used to initialize a class")
             }
         }
         PyObject::Mutable(inner) => {
@@ -40,7 +38,7 @@ pub fn call_function_1_arg_min(func: PyObject, first_arg: &PyObject, args: &[PyO
                 _ => {panic!("Mutable object is not a function")}
             }
         }
-        PyObject::IteratorFlag(_) => {panic!("IteratorFlag is not a function")}
+        other => {panic!("{:?} is not a function", other)}
     }
 }
 

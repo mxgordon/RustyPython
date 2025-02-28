@@ -7,3 +7,4 @@ pub mod globals;
 pub mod pyfloat;
 pub mod structure;
 pub mod functions;
+pub mod pybool;

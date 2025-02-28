@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::fmt::{Debug};
 use std::rc::Rc;
 use ahash::AHashMap;
@@ -141,7 +142,7 @@ pub fn range_iterator__new__(arena: &mut PyArena, pyclass: Rc<PyClass>, args: &[
     ))))
 }
 
-pub fn range_iterator__next__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
+pub fn range_iterator__next__(_arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
     let mut pyself = pyself.expect_mutable().borrow_mut();
     let instance = pyself.expect_instance_mut();
     
@@ -150,10 +151,8 @@ pub fn range_iterator__next__(arena: &mut PyArena, pyself: &PyObject) -> FuncRet
         let stop = range_iterator_internal.stop;
         let step = range_iterator_internal.step;
         
-        if step > 0 && *current >= stop {
-            return Err(arena.exceptions.stop_iteration.empty());
-        } else if step < 0 && *current <= stop {
-            return Err(arena.exceptions.stop_iteration.empty());
+        if (step > 0 && *current >= stop) || (step < 0 && *current <= stop) {
+            return Ok(PyObject::stop_iteration())
         }
         
         let rtn_val = PyObject::new_immutable(PyImmutableObject::Int(*current));

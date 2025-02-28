@@ -10,14 +10,6 @@ print(a / b)
 
 print(b / c)
 
-a = "hello"
-b = "world"
-
-print(a + " " + b)
-
-for letter in a:
-    print(letter + " - ")
-
 e = a == b
 f = b != b
 g = a > b
@@ -30,3 +22,11 @@ j = None
 
 print(j)
 print(j is None)
+
+a = "hello"
+b = "world"
+
+print(a + " " + b)
+
+for letter in a:
+    print(letter + " - ")

@@ -2,7 +2,7 @@ use std::rc::Rc;
 use ahash::AHashMap;
 use strum::IntoEnumIterator;
 use crate::builtins::structure::magic_methods::{PyMagicMethod, PyMagicMethods};
-use crate::builtins::structure::pyobject::{PyImmutableObject, PyInternalFunction, PyObject};
+use crate::builtins::structure::pyobject::{PyInternalFunction, PyObject};
 
 #[derive(Debug)]
 pub enum PyClass {
@@ -20,7 +20,7 @@ pub enum PyClass {
     // Exception {exception: PyExceptionType},
 }
 
-impl PyClass {  // TODO !automatic caching function that sets the name, superclass, and inheritance functions
+impl PyClass { 
     pub fn get_name(&self) -> &String {
         match self {
             PyClass::UserDefined { name, .. } => name,
@@ -54,7 +54,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         let mut methods_to_set = Vec::new();
         if let PyClass::Internal { .. } = self {
             for magic_method_type in PyMagicMethod::iter() {
-                if self.defines_attribute(magic_method_type.clone()) {
+                if self.defines_attribute(magic_method_type) {
                     continue;
                 }
 
@@ -72,7 +72,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
         match self {
             PyClass::Internal { magic_methods: methods, .. } => {
                 for (magic_method_type, super_method) in methods_to_set {
-                    methods.set_method(magic_method_type, super_method);
+                    methods.set_method(&magic_method_type, super_method);
                 }
             }
             _ => todo!()
@@ -124,7 +124,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
             },
 
             PyClass::Internal { magic_methods: methods, .. } => {
-                Some(PyObject::new_immutable(PyImmutableObject::InternalSlot(methods.get_method(&magic_method)?)))
+                Some(PyObject::new_internal_func(methods.get_method(&magic_method)?))
             }
         }
     }
@@ -141,7 +141,7 @@ impl PyClass {  // TODO !automatic caching function that sets the name, supercla
                     let method = magic_methods.get_method(&magic_method);
 
                     if let Some(method) = method {
-                        return Some(PyObject::new_immutable(PyImmutableObject::InternalSlot(method)));
+                        return Some(PyObject::new_internal_func(method));
                     }
                 }
 

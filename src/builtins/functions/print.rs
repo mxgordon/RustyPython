@@ -4,13 +4,13 @@ use crate::pyarena::PyArena;
 
 pub fn py_print(arena: &mut PyArena, args: &[PyObject]) -> FuncReturnType {
     let sep = " ";
-    let mut strs = Vec::new();
     
-    for arg in args {
-        strs.push(py_str_tmp(arg, arena)?.expect_immutable().expect_string());
-    }
+    let str_fold = args.iter().try_fold(Vec::new(), |mut acc, arg| {
+        acc.push(py_str_tmp(arg, arena)?.expect_immutable().expect_string());
+        Ok(acc)
+    })?;
     
-    let result = strs.join(sep);
+    let result = str_fold.join(sep);
     
     println!("{}", result);
     

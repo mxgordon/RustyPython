@@ -1,17 +1,18 @@
+#![allow(non_snake_case)]
 use std::rc::Rc;
 use ahash::AHashMap;
 use crate::builtins::function_utils::call_function;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyinstance::PyInstance;
-use crate::builtins::structure::pyobject::{InitFuncType, EmptyFuncReturnType, FuncReturnType, NewFuncType, UnaryFuncType, PyObject, PyMutableObject, PyImmutableObject};
+use crate::builtins::structure::pyobject::{InitFuncType, EmptyFuncReturnType, FuncReturnType, NewFuncType, UnaryFuncType, PyObject, PyMutableObject, PyImmutableObject, PyInternalObject};
 use crate::builtins::structure::pyobject::PyInternalFunction::{InitFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
 
 pub fn expect_class(pyobj: &PyObject) -> Rc<PyClass> {
-    match **pyobj.expect_immutable() {
-        PyImmutableObject::InternalClass(ref class) => class.clone(),
+    match pyobj.expect_internal() {
+        PyInternalObject::InternalClass(class) => class.clone(),
         _ => panic!("Expected class"),
     }
 }

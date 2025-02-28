@@ -1,9 +1,10 @@
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
+use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, TrueDiv};
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyImmutableObject, PyIteratorFlag, PyObject};
+use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
@@ -31,23 +32,30 @@ fn eval_val(value: &Value) -> PyObject {
     }
 }
 
-fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> FuncReturnType {
-    let func = eval_expr(&*func, arena)?;
+fn eval_args(args: &[Expr], arena: &mut PyArena) -> Result<Vec<PyObject>, PyException> {
+    let mut evaluated_args = Vec::with_capacity(args.len());
     
-    let args = args.iter().map(|arg| eval_expr(arg, arena)).collect::<Result<Vec<_>, _>>()?;
+    for arg in args {
+        evaluated_args.push(eval_expr(arg, arena)?);
+    }
+    
+    Ok(evaluated_args)
+}
 
-    match **func.expect_immutable() {
+fn eval_fun_call(func: &Box<Expr>, args: &[Expr], arena: &mut PyArena) -> FuncReturnType {
+    let func = eval_expr(func, arena)?;
+    
+    let evaluated_args = eval_args(args, arena)?;
+
+    match func.expect_internal() {
         // PyImmutableObject::Function(ref _func) => { // TODO allow for calling of custom functions
         //     todo!()
         // }
-        PyImmutableObject::InternalSlot(ref func) => {
-            eval_internal_func(func.clone(), &args[..], arena)
+        PyInternalObject::InternalFunction(func) => {
+            eval_internal_func(func.clone(), &evaluated_args[..], arena)
         }
-        PyImmutableObject::InternalClass(ref pyclass) => {
-            eval_obj_init(pyclass.clone(), &args[..], arena)
-        }
-        _ => {
-            panic!("{:?} is not a function", func); // TODO Make python error
+        PyInternalObject::InternalClass(pyclass) => {
+            eval_obj_init(pyclass.clone(), &evaluated_args[..], arena)
         }
     }
 }
@@ -73,23 +81,20 @@ fn eval_fun_call(func: &Box<Expr>, args: &Vec<Expr>, arena: &mut PyArena) -> Fun
 //     call_function(func, func_args, arena)
 // }
 
-fn call_magic_method_of_pyobj_with_args(py_magic_method: &PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
-    let pyobj = eval_expr(pyobj_expr, arena)?;
-    let mut pyargs = vec![];
-    
-    for arg in args {
-        pyargs.push(eval_expr(arg, arena)?);
-    }
-
-    let func = pyobj.get_magic_method(py_magic_method, arena).ok_or_else(|| { 
-        let message = format!("cannot find method '{py_magic_method}' in '{}' object", pyobj.clone_class(arena).get_name());
-        arena.exceptions.type_error.instantiate(message) 
-    })?;
-    
-    let func_args = [&[pyobj], &*pyargs].concat();
-
-    call_function(func, &func_args, arena)
-}
+// fn call_magic_method_of_pyobj_with_args(py_magic_method: &PyMagicMethod, pyobj_expr: &Expr, args: Vec<&Expr>, arena: &mut PyArena) -> FuncReturnType {
+//     let pyobj = eval_expr(pyobj_expr, arena)?;
+//     
+//     let evaluated_args = eval_args(args, arena)?;
+// 
+//     let func = pyobj.get_magic_method(py_magic_method, arena).ok_or_else(|| { 
+//         let message = format!("cannot find method '{py_magic_method}' in '{}' object", pyobj.clone_class(arena).get_name());
+//         arena.exceptions.type_error.instantiate(message) 
+//     })?;
+//     
+//     let func_args = [&[pyobj], &*pyargs].concat();
+// 
+//     call_function(func, &func_args, arena)
+// }
 
 fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
@@ -99,7 +104,7 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
         Expr::Divide(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena)} // TODO implement __div__ (prob not)
         Expr::Plus(first, second) => {math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Add {right: false}, arena)},
         Expr::Minus(first, second) => {todo!()}
-        Expr::Comparison(_first, _comp, _second) => {todo!()}
+        Expr::Comparison(first, comp, second) => {compare_op(&eval_expr(first, arena)?, &eval_expr(second, arena)?, comp, arena)},
         Expr::Pow(first, second) => todo!(),
         Expr::FunCall(name, args) => eval_fun_call(name, args, arena)
     }
@@ -144,6 +149,13 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     let cell = arena.get_cell(&var_name).expect("cell should exist").as_ptr();
 
     while let Ok(ref mut next_val) = next_func_rtn {
+        if let PyObject::IteratorFlag(flag_type) = next_val {
+            match flag_type {
+                PyIteratorFlag::StopIteration => break,
+                _ => panic!("IteratorFlag should only be StopIteration")
+            }
+        }
+        
         unsafe {  // ! I think this is chill
             *cell = next_val.clone();
         }
@@ -155,10 +167,11 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
                 PyObject::IteratorFlag(ref flag_type) => {
                     match flag_type {
                         PyIteratorFlag::Break => break,
-                        PyIteratorFlag::Continue => continue
+                        PyIteratorFlag::Continue => continue,
+                        _ => panic!("IteratorFlag should be Break or Continue")
                     }
                 }
-                _ => return Ok(Some(code_rtn.clone()))
+                _ => return Ok(Some(code_rtn))
             }
         }
 
@@ -167,12 +180,8 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     };
     arena.remove(var);  // clear iterator variable from scope
     
-    let err_val = next_func_rtn.expect_err("next_func_rtn needs to end with a type of error");
+    next_func_rtn?;
     
-    if !err_val.is_same_type(&arena.exceptions.stop_iteration) {
-        return Err(err_val);
-    } 
-
     Ok(None)
 }
 

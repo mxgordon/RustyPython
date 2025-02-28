@@ -40,7 +40,7 @@ fn main() {
     let parse_tree = python_parser::code(contents, 0);
     if let Ok(parse_tree) = parse_tree {
         
-        println!("{:?}", parse_tree);
+        // println!("{:?}", parse_tree);
         
         evaluate(parse_tree);
         

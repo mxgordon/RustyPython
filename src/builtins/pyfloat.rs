@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::rc::Rc;
 use ahash::AHashMap;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethods};
@@ -36,7 +37,7 @@ pub fn parse_float_op_func_params(pyself: &PyObject, other: &PyObject, arena: &m
 
 pub fn float__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {
     let value = pyargs.first();
-    
+    // TODO: call __float__()
     let new_value;
     
     if let Some(value) = value {

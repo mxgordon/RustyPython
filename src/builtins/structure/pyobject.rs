@@ -12,6 +12,7 @@ use crate::builtins::structure::pyinstance::PyInstance;
 pub enum PyObject {
     Immutable(Rc<PyImmutableObject>),  // TODO, consider using Cow's here
     Mutable(PyPointer<PyMutableObject>),
+    Internal(PyInternalObject),
     IteratorFlag(PyIteratorFlag)
 }
 
@@ -30,11 +31,11 @@ impl PyObject {
         Self::new_immutable(PyImmutableObject::Bool(value))
     }
     pub fn new_internal_class(value: Rc<PyClass>) -> Self {
-        Self::new_immutable(PyImmutableObject::InternalClass(value))
+        Self::new_internal(PyInternalObject::InternalClass(value))
     }
     
     pub fn new_internal_func(value: Rc<PyInternalFunction>) -> Self {
-        Self::new_immutable(PyImmutableObject::InternalSlot(value))
+        Self::new_internal(PyInternalObject::InternalFunction(value))
     }
     
     pub fn new_mutable(value: PyMutableObject) -> Self {
@@ -43,6 +44,10 @@ impl PyObject {
     
     pub fn new_immutable(value: PyImmutableObject) -> Self {
         PyObject::Immutable(Rc::new(value))
+    }
+    
+    pub fn new_internal(value: PyInternalObject) -> Self {
+        PyObject::Internal(value)
     }
     
     pub fn none() -> Self {
@@ -57,9 +62,20 @@ impl PyObject {
         PyObject::IteratorFlag(PyIteratorFlag::Continue)
     }
     
+    pub fn stop_iteration() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
+        PyObject::IteratorFlag(PyIteratorFlag::StopIteration)
+    }
+    
     pub fn expect_immutable(&self) -> &Rc<PyImmutableObject> {
         match self {
             PyObject::Immutable(inner) => inner,
+            _ => panic!("Expected immutable object"), // TODO make python error
+        }
+    }
+    
+    pub fn expect_internal(&self) -> &PyInternalObject {
+        match self {
+            PyObject::Internal(inner) => inner,
             _ => panic!("Expected immutable object"), // TODO make python error
         }
     }
@@ -76,6 +92,7 @@ impl PyObject {
             PyObject::Immutable(inner) => inner.get_magic_method(py_magic_method, arena),
             PyObject::Mutable(inner) => inner.borrow().get_magic_method(py_magic_method, arena),
             PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no magic methods")}
+            PyObject::Internal(_) => {todo!()}
         }
     }
     
@@ -84,6 +101,7 @@ impl PyObject {
             PyObject::Immutable(ref inner) => inner.get_class(arena).clone(),
             PyObject::Mutable(ref inner) => inner.borrow().get_class().clone(),
             PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no class")}
+            PyObject::Internal(_) => {todo!()}
         }
     }
 }
@@ -96,8 +114,6 @@ pub enum PyImmutableObject {
     Float(f64),
     Bool(bool),
     Str(String),  // TODO, maybe use immutable string type here
-    InternalSlot(Rc<PyInternalFunction>),
-    InternalClass(Rc<PyClass>)
 }
 
 impl PyImmutableObject {
@@ -106,10 +122,8 @@ impl PyImmutableObject {
             PyImmutableObject::None => {todo!()}
             PyImmutableObject::Int(_) => {&arena.globals.int_class}
             PyImmutableObject::Float(_) => {&arena.globals.float_class}
-            PyImmutableObject::Bool(_) => {todo!()}
+            PyImmutableObject::Bool(_) => {&arena.globals.bool_class}
             PyImmutableObject::Str(_) => {todo!()}
-            PyImmutableObject::InternalSlot(_) => {todo!()}
-            PyImmutableObject::InternalClass(_) => {todo!()}
         }
     }
     
@@ -119,18 +133,35 @@ impl PyImmutableObject {
             _ => panic!("Object is not a string"), // TODO make python error
         }
     }
-
-    pub fn expect_internal_slot(&self) -> Rc<PyInternalFunction> {
-        match self {
-            PyImmutableObject::InternalSlot(slot) => slot.clone(),
-            _ => panic!("Expected internal slot"), // TODO make python error
-        }
-    }
     
     pub fn get_magic_method(&self, py_magic_method: &PyMagicMethod, arena: &mut PyArena) -> Option<PyObject> {
         self.get_class(arena).search_for_magic_method(py_magic_method)
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum PyInternalObject {
+    InternalFunction(Rc<PyInternalFunction>),
+    InternalClass(Rc<PyClass>)
+}
+
+impl PyInternalObject {
+    pub fn expect_internal_slot(&self) -> Rc<PyInternalFunction> {
+        match self {
+            PyInternalObject::InternalFunction(slot) => slot.clone(),
+            _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
+    
+    pub fn expect_internal_function(&self) -> Rc<PyInternalFunction> {
+        match self {
+            PyInternalObject::InternalFunction(slot) => slot.clone(),
+            _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
+}
+
+
 
 #[derive(Debug)]
 pub enum PyMutableObject {
@@ -241,5 +272,6 @@ impl<T> PyPointer<T> {
 #[derive(Debug, Clone)]
 pub enum PyIteratorFlag {
     Break,
-    Continue
+    Continue,
+    StopIteration
 }
