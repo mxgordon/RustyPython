@@ -19,7 +19,7 @@ cargo build --release
 
 ## Speed
 
-Currently, this is looking about 2-4x slower than CPython. This is not so bad, heading in the right direction. However, it is also about 2x faster than [RustPython](https://github.com/RustPython/RustPython). This is a good sign.
+Currently, this is looking about 2-3x slower than CPython. This is not so bad, heading in the right direction. However, it is also about 3-4x faster than [RustPython](https://github.com/RustPython/RustPython). This is a good sign.
 
 ## Tests
 

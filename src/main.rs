@@ -18,7 +18,7 @@ use crate::parser::remove_comments;
 extern crate mopa;
 
 fn main() {
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = env::args().collect();
     
     let mut contents = String::new();

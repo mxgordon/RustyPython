@@ -68,7 +68,7 @@ flamegraph samples: 16,219
 """
 
 if __name__ == '__main__':
-    test_file = "test_deep_for_loop.py"
+    test_file = "test_addition.py"
 
     rusty_time = benchmark_rusty(test_file)
     rs_time = benchmark_rs(test_file)
