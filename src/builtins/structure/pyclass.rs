@@ -8,8 +8,8 @@ use crate::builtins::structure::pyobject::{PyInternalFunction, PyObject};
 pub enum PyClass {
     UserDefined {
         name: String,
+        super_classes: Vec<Rc<PyClass>>,
         attributes: AHashMap<String, PyObject>,
-        super_classes: Vec<Rc<PyClass>>
     },
     Internal {
         name: String,
@@ -129,24 +129,24 @@ impl PyClass {
         }
     }
 
-    pub fn search_for_method(&self, method_name: &str) -> Option<PyObject> {
-        match self {
-            PyClass::UserDefined { attributes, .. } => {
-                attributes.get(method_name).cloned()
-            },
-
-            PyClass::Internal { magic_methods, attributes, .. } => {
-                let magic_method = PyMagicMethod::from_string(method_name);
-                if let Some(magic_method) = magic_method {
-                    let method = magic_methods.get_method(&magic_method);
-
-                    if let Some(method) = method {
-                        return Some(PyObject::new_internal_func(method));
-                    }
-                }
-
-                attributes.get(method_name).cloned()
-            }
-        }
-    }
+    // pub fn search_for_method(&self, method_name: &str) -> Option<PyObject> {
+    //     match self {
+    //         PyClass::UserDefined { attributes, .. } => {
+    //             attributes.get(method_name).cloned()
+    //         },
+    // 
+    //         PyClass::Internal { magic_methods, attributes, .. } => {
+    //             let magic_method = PyMagicMethod::from_string(method_name);
+    //             if let Some(magic_method) = magic_method {
+    //                 let method = magic_methods.get_method(&magic_method);
+    // 
+    //                 if let Some(method) = method {
+    //                     return Some(PyObject::new_internal_func(method));
+    //                 }
+    //             }
+    // 
+    //             attributes.get(method_name).cloned()
+    //         }
+    //     }
+    // }
 }

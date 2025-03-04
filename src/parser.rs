@@ -70,8 +70,7 @@ peg::parser!{
         pub rule sp() = quiet!{" "*}
         pub rule sp1() = quiet!{" "+}
         pub rule nosp() = !" "
-        pub rule comment() = ("#" [^('\n')]* ("\n" / [^_]))
-        pub rule nl() = ("\r\n" / "\n")+ / ";" / comment()
+        pub rule nl() = ("\r\n" / "\n")+ / ";" 
         pub rule ws() = quiet!{("\r\n" / "\n" / " ")*}
 
         pub rule indent(min: usize) = quiet!{" "*<{min}>}

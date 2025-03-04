@@ -1,10 +1,11 @@
 #![allow(non_snake_case)]
 use std::rc::Rc;
 use ahash::AHashMap;
-use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethods};
+use crate::builtins::function_utils::call_function_1_arg_min;
+use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyObject, UnaryFuncType};
+use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, UnaryFuncType};
 use crate::builtins::structure::pyobject::PyInternalFunction::{BivariateFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
@@ -23,8 +24,38 @@ pub fn expect_float_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<f
         PyImmutableObject::Float(value) => {Ok(value)}
         PyImmutableObject::Int(value) => {Ok(value as f64)}
         PyImmutableObject::Bool(value) => {Ok(if value {1.0} else {0.0})}
-        ref value => {
+        ref _value => {
             Err(arena.exceptions.not_implemented_error.empty())
+        },
+    }
+}
+
+pub fn convert_mutable_to_float(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<f64, PyException> {
+    let float_func = mutable_obj.get_magic_method(&PyMagicMethod::Float, arena);
+
+    if let Some(float_func) = float_func {
+        let func_result = call_function_1_arg_min(float_func, pyobj, &[], arena)?;
+
+        let float_result = expect_float(&func_result, arena);
+
+        return float_result.map_err(|error| {
+                let message = format!("{}.__float__ returned non-float (type {{<other type>}})", pyobj.clone_class(arena).get_name());
+                arena.exceptions.type_error.instantiate(message)
+        });
+    }
+
+    let message = format!("float() argument must be a string or a real number, not '{}'", pyobj.clone_class(arena).get_name());
+    Err(arena.exceptions.type_error.instantiate(message))
+}
+
+pub fn convert_immutable_to_float(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<f64, PyException> {
+    match *immutable_obj {
+        PyImmutableObject::Int(ref value) => Ok(*value as f64),  // copy the value
+        PyImmutableObject::Float(ref value) => Ok(*value),
+        PyImmutableObject::Str(ref value) => Ok(value.parse::<f64>().unwrap()),
+        ref value => {
+            let message = format!("float() argument must be a string, a bytes-like object or a real number, not '{}'", value.get_class(arena).get_name());
+            Err(arena.exceptions.type_error.instantiate(message))?
         },
     }
 }
@@ -37,19 +68,17 @@ pub fn parse_float_op_func_params(pyself: &PyObject, other: &PyObject, arena: &m
 
 pub fn float__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {
     let value = pyargs.first();
-    // TODO: call __float__()
     let new_value;
     
     if let Some(value) = value {
-        new_value = match **value.expect_immutable() {
-            PyImmutableObject::Int(ref value) => *value as f64,  // copy the value
-            PyImmutableObject::Float(ref value) => *value,
-            PyImmutableObject::Str(ref value) => value.parse::<f64>().unwrap(),
-            ref value => {
-                let message = format!("float() argument must be a string, a bytes-like object or a real number, not '{}'", value.get_class(arena).get_name());
-                Err(arena.exceptions.type_error.instantiate(message))?
+        new_value = match value {
+            PyObject::Immutable(immutable) => convert_immutable_to_float(immutable, arena)?,
+            PyObject::Mutable(mutable) => convert_mutable_to_float(value, &mutable.borrow(), arena)?,
+            value => {
+                let message = format!("float() argument must be a string or a real number, not '{}'", value.clone_class(arena).get_name());
+                return Err(arena.exceptions.type_error.instantiate(message))
             },
-        };
+        }
     } else {
         new_value = 0.0;
     }

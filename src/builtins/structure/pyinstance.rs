@@ -41,8 +41,10 @@ impl PyInstance {
     pub(crate) fn get_field(&self, key: &str, pyarena: &mut PyArena) -> FuncReturnType {
         let mut attribute = self.internal.get_field(key, pyarena);
 
-        if attribute.is_none() && let Some(ref attributes) = self.attributes {
-            attribute = attributes.get(key).cloned();
+        if attribute.is_none() {
+            if let Some(ref attributes) = self.attributes {
+                attribute = attributes.get(key).cloned();
+            }
         }
 
         attribute.ok_or_else(|| pyarena.exceptions.attribute_error.instantiate(format!("'{}' object has no attribute `{key}`", self.class.get_name())))

@@ -175,7 +175,7 @@ impl PyMutableObject {
         match self {
             PyMutableObject::Instance(py_instance) => py_instance.get_class(),
             // PyMutableObject::Class(py_class) => py_class,
-            PyMutableObject::Function(py_function) => todo!(),
+            PyMutableObject::Function(_py_function) => todo!(),
         }
     }
 
@@ -183,7 +183,7 @@ impl PyMutableObject {
         match self {
             PyMutableObject::Instance(instance) => instance.get_field(name, arena),
             // PyMutableObject::Class(py_class) => todo!(),
-            PyMutableObject::Function(py_function) => todo!(),
+            PyMutableObject::Function(_py_function) => todo!(),
         }
     }
     

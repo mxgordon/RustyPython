@@ -1,5 +1,5 @@
 #![feature(fn_traits)]
-#![feature(let_chains)]
+// #![feature(let_chains)]
 #![feature(hash_raw_entry)]
 
 mod parser;
@@ -24,7 +24,9 @@ fn main() {
     let mut contents = String::new();
     
     if args.len() == 1 {
-        contents = "  a=4\n  a + 2".to_string();
+        // contents = "  a=4\n  a + 2".to_string();
+        println!("No target file");
+        return;
 
     } else if args.len() > 2 {
         panic!("Expect 1 arg for the test file name, got: {}", args.len() - 1);
