@@ -52,10 +52,10 @@ pub fn convert_immutable_to_float(immutable_obj: &PyImmutableObject, arena: &mut
     match *immutable_obj {
         PyImmutableObject::Int(ref value) => Ok(*value as f64),  // copy the value
         PyImmutableObject::Float(ref value) => Ok(*value),
-        PyImmutableObject::Str(ref value) => Ok(value.parse::<f64>().unwrap()),
+        PyImmutableObject::Str(ref value) => Ok(value.parse::<f64>().unwrap()), // TODO remove unwrap
         ref value => {
             let message = format!("float() argument must be a string, a bytes-like object or a real number, not '{}'", value.get_class(arena).get_name());
-            Err(arena.exceptions.type_error.instantiate(message))?
+            Err(arena.exceptions.type_error.instantiate(message))
         },
     }
 }

@@ -1,16 +1,17 @@
 #![allow(non_snake_case)]
 use std::rc::Rc;
 use ahash::AHashMap;
-use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethods};
+use crate::builtins::function_utils::call_function_1_arg_min;
+use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyObject, UnaryFuncType};
+use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, UnaryFuncType};
 use crate::builtins::structure::pyobject::PyInternalFunction::{BivariateFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
 pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyException> {
     match **pyobj.expect_immutable() {
-        PyImmutableObject::Bool(ref value) => { Ok(*value as i64) }
+        PyImmutableObject::Bool(ref value) => { Ok(*value as i64) }  // TODO sometime this case should be a warning, i.e. DeprecationWarning: __int__ returned non-int (type bool).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.
         PyImmutableObject::Int(ref value) => {Ok(*value)}
         ref value => {
             let message = format!("'{}' object cannot be interpreted as an integer", value.get_class(arena).get_name());
@@ -29,6 +30,39 @@ pub fn expect_int_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64
     }
 }
 
+pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<i64, PyException> {
+    let int_func = mutable_obj.get_magic_method(&PyMagicMethod::Int, arena);
+
+    if let Some(int_func) = int_func {
+        let func_result = call_function_1_arg_min(int_func, pyobj, &[], arena)?;
+
+        let int_result = expect_int(&func_result, arena);
+
+        return int_result.map_err(|error| {
+            let message = format!("{}.__int__ returned non-int (type {{<other type>}})", pyobj.clone_class(arena).get_name());
+            arena.exceptions.type_error.instantiate(message)
+        });
+    }
+
+    let message = format!("int() argument must be a string, a bytes-like object or a real number, not '{}'", pyobj.clone_class(arena).get_name());
+    Err(arena.exceptions.type_error.instantiate(message))
+}
+
+pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<i64, PyException> {
+    match *immutable_obj {
+        PyImmutableObject::Int(ref value) => Ok(*value),  // copy the value
+        PyImmutableObject::Float(ref value) => Ok(*value as i64),
+        PyImmutableObject::Str(ref value) => value.parse::<i64>().map_err(|_error| {
+            let message = format!("invalid literal for int() with base 10: '{}'", value);  // TODO add support for different bases
+            arena.exceptions.type_error.instantiate(message)
+        }),
+        ref value => {
+            let message = format!("float() argument must be a string, a bytes-like object or a real number, not '{}'", value.get_class(arena).get_name());
+            Err(arena.exceptions.type_error.instantiate(message))
+        },
+    }
+}
+
 pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut PyArena) -> Result<(i64, i64), PyException> {
     let self_value = expect_int(pyself, arena)?;
     let other_value = expect_int_promotion(other, arena)?;
@@ -36,18 +70,22 @@ pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut
 }
 
 pub fn int__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {  // error handling
-    let value = pyargs.first().unwrap();
-    // TODO: call __int__
-    let new_value = match **value.expect_immutable() {  // cast value
-        PyImmutableObject::Int(ref value) => *value,  // copy the value
-        PyImmutableObject::Float(ref value) => *value as i64,
-        PyImmutableObject::Str(ref value) => value.parse::<i64>().unwrap(),
-        ref value => { 
-            let message = format!("int() argument must be a string, a bytes-like object or a real number, not '{}'", value.get_class(arena).get_name());
-            Err(arena.exceptions.type_error.instantiate(message))? 
-        },
-    };
-    
+    let value = pyargs.first();
+    let new_value;
+
+    if let Some(value) = value {
+        new_value = match value {
+            PyObject::Immutable(immutable) => convert_immutable_to_int(immutable, arena)?,
+            PyObject::Mutable(mutable) => convert_mutable_to_int(value, &mutable.borrow(), arena)?,
+            value => {
+                let message = format!("int() argument must be a string, a bytes-like object or a real number, not '{}'", value.clone_class(arena).get_name());
+                return Err(arena.exceptions.type_error.instantiate(message))
+            },
+        }
+    } else {
+        new_value = 0;
+    }
+
     Ok(PyObject::new_int(new_value))  // I don't know how to do inheritance with this
 }
 
