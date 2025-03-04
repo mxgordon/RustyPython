@@ -11,7 +11,6 @@ use crate::pyarena::PyArena;
 
 pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyException> {
     match **pyobj.expect_immutable() {
-        PyImmutableObject::Bool(ref value) => { Ok(*value as i64) }  // TODO sometime this case should be a warning, i.e. DeprecationWarning: __int__ returned non-int (type bool).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.
         PyImmutableObject::Int(ref value) => {Ok(*value)}
         ref value => {
             let message = format!("'{}' object cannot be interpreted as an integer", value.get_class(arena).get_name());
@@ -51,6 +50,7 @@ pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, a
 pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<i64, PyException> {
     match *immutable_obj {
         PyImmutableObject::Int(ref value) => Ok(*value),  // copy the value
+        PyImmutableObject::Bool(ref value) => Ok(if *value { 1 } else { 0 }),
         PyImmutableObject::Float(ref value) => Ok(*value as i64),
         PyImmutableObject::Str(ref value) => value.parse::<i64>().map_err(|_error| {
             let message = format!("invalid literal for int() with base 10: '{}'", value);  // TODO add support for different bases
@@ -64,7 +64,7 @@ pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut P
 }
 
 pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut PyArena) -> Result<(i64, i64), PyException> {
-    let self_value = expect_int(pyself, arena)?;
+    let self_value = expect_int_promotion(pyself, arena)?; // this is done for easy inheritance to bool
     let other_value = expect_int_promotion(other, arena)?;
     Ok((self_value, other_value))
 }

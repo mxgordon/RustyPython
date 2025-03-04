@@ -4,11 +4,10 @@ from pathlib import Path
 def get_rs_files(path: Path):
     files = []
     
-    for name in os.listdir(path):
-        if os.path.isdir(path / name):
-            files += get_rs_files(path / name)
-        elif name.endswith('.rs'):
-            files.append(path / name)
+    for dirpath, dirname, filenames in os.walk(path):
+        for filename in filenames:
+            if filename.endswith('.rs'):
+                files.append(dirpath + "/" + filename)
             
     return files
 
