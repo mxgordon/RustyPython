@@ -41,29 +41,29 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 
 ## Supported Features
 
-| Feature                | Supported | Notes                                    |
-|------------------------|------|------------------------------------------|
-| User-defined Variables | ✔️ |                                          |
-| Print Function         | ✔️ |                                          |
-| Operator overloading   | ✔️ |                                          |
-| For Loops              | ✔️ | Doesn't support tuple unpacking (yet)    |
-| Comments               | ✔️ |                                          |
-| Basic Math Operations  | 🚧 | still needs % and //                     |
-| Math Assign Operations | 🚧 | += only                                  |
-| Primatives             | 🚧 | int, float only (limited implementation) |
-| Built in types         | 🚧 | range only                               |
-| While Loops            | ❌ |                                          |
-| If/if-else Statements  | ❌ |                                          |
-| Match Statements       | ❌ |                                          |
-| User-defined Functions | ❌ |                                          |
-| User-define classes    | ❌ |                                          |
-| User-define modules    | ❌ |                                          |
-| Error Handling         | ❌ |                                          |
-| Generators             | ❌ |                                          |
-| Importing modules      | ❌ |                                          |
-| Typeing                | ❌ |                                          |
-| Keyword: with          | ❌ |                                          |
-| Keyword: global        | ❌ |                                          |
-| Keyword: assert        | ❌ |                                          |
-| Keyword: del           | ❌ |                                          |
-| Async                  | ❌ |                                          |
+| Feature                | Supported | Notes                                                      |
+|------------------------|------|------------------------------------------------------------|
+| User-defined Variables | ✔️ |                                                            |
+| Print Function         | ✔️ |                                                            |
+| Operator overloading   | ✔️ |                                                            |
+| For Loops              | ✔️ | Doesn't support tuple unpacking (yet)                      |
+| Comments               | ✔️ |                                                            |
+| Basic Math Operations  | 🚧 | still needs % and //                                       |
+| Math Assign Operations | 🚧 | still needs //=, @=, **=, no support for in-pace methods yet |
+| Primatives             | 🚧 | int, float, bool, None (limited implementation)            |
+| Built in types         | 🚧 | range only                                                 |
+| While Loops            | ❌ |                                                            |
+| If/if-else Statements  | ❌ |                                                            |
+| Match Statements       | ❌ |                                                            |
+| User-defined Functions | ❌ |                                                            |
+| User-define classes    | ❌ |                                                            |
+| User-define modules    | ❌ |                                                            |
+| Error Handling         | ❌ |                                                            |
+| Generators             | ❌ |                                                            |
+| Importing modules      | ❌ |                                                            |
+| Typeing                | ❌ |                                                            |
+| Keyword: with          | ❌ |                                                            |
+| Keyword: global        | ❌ |                                                            |
+| Keyword: assert        | ❌ |                                                            |
+| Keyword: del           | ❌ |                                                            |
+| Async                  | ❌ |                                                            |
