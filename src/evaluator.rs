@@ -6,7 +6,6 @@ use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, Pow, Su
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
 use crate::builtins::types::pybool::{convert_pyobj_to_bool};
-use crate::builtins::types::pyint::expect_int;
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
@@ -54,7 +53,7 @@ fn eval_fun_call(func: &Box<Expr>, args: &[Expr], arena: &mut PyArena) -> FuncRe
         //     todo!()
         // }
         PyInternalObject::InternalFunction(func) => {
-            eval_internal_func(func.clone(), &evaluated_args[..], arena)
+            eval_internal_func(func, &evaluated_args[..], arena)
         }
         PyInternalObject::InternalClass(pyclass) => {
             eval_obj_init(pyclass.clone(), &evaluated_args[..], arena)
@@ -213,15 +212,35 @@ fn eval_while(condition: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBl
     Ok(None)
 }
 
+fn eval_if(cond: &Expr, if_code: &CodeBlock, elif_cond_code: &Vec<(Expr, CodeBlock)>, else_code: &Option<CodeBlock>, arena: &mut PyArena) -> CodeBlockReturn {
+    if convert_pyobj_to_bool(&eval_expr(cond, arena)?, arena)? {
+        return eval_code_block(if_code, arena);
+    } 
+    
+    for (elif_cond, elif_code) in elif_cond_code {
+        if convert_pyobj_to_bool(&eval_expr(elif_cond, arena)?, arena)? {
+            return eval_code_block(elif_code, arena);
+        }
+    }
+    
+    if let Some(else_code) = else_code {
+        return eval_code_block(else_code, arena);
+    }
+    
+    Ok(None)
+}
+
 fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     for statement in code.statements.iter() {
         let mut rtn_val: Option<PyObject> = None;
         match statement {
             Statement::Expr(expr) => { eval_expr(expr, arena)?; },
             Statement::Defn(define) => eval_defn(define, arena)?,
+            Statement::If(cond, if_code, elif, else_code) => rtn_val = eval_if(cond, if_code, elif, else_code, arena)?,
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena)?,
             Statement::While(condition, code) => rtn_val = eval_while(condition, code, arena)?,
             Statement::Return(rtn_expr) => rtn_val = Some(eval_expr(rtn_expr, arena)?),
+            Statement::Assert(expr1, expr2) => todo!(),
             Statement::Continue => rtn_val = Some(PyObject::continue_()),
             Statement::Break => rtn_val = Some(PyObject::break_()),
         };

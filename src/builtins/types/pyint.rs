@@ -33,7 +33,7 @@ pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, a
     let int_func = mutable_obj.get_magic_method(&PyMagicMethod::Int, arena);
 
     if let Some(int_func) = int_func {
-        let func_result = call_function_1_arg_min(int_func, pyobj, &[], arena)?;
+        let func_result = call_function_1_arg_min(&int_func, pyobj, &[], arena)?;
 
         let int_result = expect_int(&func_result, arena);
 

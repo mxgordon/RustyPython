@@ -22,7 +22,7 @@ pub fn expect_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bool, PyExce
 
 
 fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<bool, PyException> {
-    let bool_func = mutable_obj.get_magic_method(&PyMagicMethod::Bool, arena);
+    let ref bool_func = mutable_obj.get_magic_method(&PyMagicMethod::Bool, arena);
 
     if let Some(bool_func) = bool_func {
         let func_result = call_function_1_arg_min(bool_func, pyobj, &[], arena)?;

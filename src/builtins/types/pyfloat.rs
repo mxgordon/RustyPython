@@ -34,7 +34,7 @@ pub fn convert_mutable_to_float(pyobj: &PyObject, mutable_obj: &PyMutableObject,
     let float_func = mutable_obj.get_magic_method(&PyMagicMethod::Float, arena);
 
     if let Some(float_func) = float_func {
-        let func_result = call_function_1_arg_min(float_func, pyobj, &[], arena)?;
+        let func_result = call_function_1_arg_min(&float_func, pyobj, &[], arena)?;
 
         let float_result = expect_float(&func_result, arena);
 

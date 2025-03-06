@@ -10,7 +10,7 @@ pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> 
     match func {
         PyObject::Internal(inner) => {
             match inner {
-                PyInternalObject::InternalFunction(func) => eval_internal_func(func, args, arena),
+                PyInternalObject::InternalFunction(func) => eval_internal_func(&func, args, arena),
                 PyInternalObject::InternalClass(pyclass) => eval_obj_init(pyclass, args, arena)
             }
         }
@@ -24,7 +24,7 @@ pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> 
     }
 }
 
-pub fn call_function_1_arg_min(func: PyObject, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
+pub fn call_function_1_arg_min(func: &PyObject, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
     match func {
         PyObject::Internal(inner) => {
             match inner {
@@ -42,7 +42,7 @@ pub fn call_function_1_arg_min(func: PyObject, first_arg: &PyObject, args: &[PyO
     }
 }
 
-pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
+pub(crate) fn eval_internal_func(func: &Rc<PyInternalFunction>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
     match (func.deref(), args.len()) {
         (PyInternalFunction::NewFunc(func), n) => {
             func(arena, expect_class(&args[0]), &args[1..n])  // TODO find a way to not clone the class
@@ -66,7 +66,7 @@ pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: &[PyObject]
     }
 }
 
-pub(crate) fn eval_internal_func_1_arg_min(func: Rc<PyInternalFunction>, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
+pub(crate) fn eval_internal_func_1_arg_min(func: &Rc<PyInternalFunction>, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
     match (func.deref(), args.len()) {
         (PyInternalFunction::NewFunc(func), _n) => {
             func(arena, expect_class(first_arg), args)
@@ -101,8 +101,8 @@ pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut
         panic!("{:?} has no __init__ method", pyclass)
     }
 
-    let new_func = new_func.unwrap();
-    let init_func = init_func.unwrap();
+    let ref new_func = new_func.unwrap();
+    let ref init_func = init_func.unwrap();
 
     let new_object = call_function_1_arg_min(new_func, &PyObject::new_internal_class(pyclass), &args, arena)?;
 
@@ -112,8 +112,8 @@ pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut
 }
 
 pub(crate) fn init_internal_class(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    let new_func = pyclass.get_magic_method_internal(&PyMagicMethod::New).unwrap();
-    let init_func = pyclass.get_magic_method_internal(&PyMagicMethod::Init).unwrap();
+    let ref new_func = pyclass.get_magic_method_internal(&PyMagicMethod::New).unwrap();
+    let ref init_func = pyclass.get_magic_method_internal(&PyMagicMethod::Init).unwrap();
     
     let new_object = eval_internal_func_1_arg_min(new_func, &PyObject::new_internal_class(pyclass), &args, arena)?;
 

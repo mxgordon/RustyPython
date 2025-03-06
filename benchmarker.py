@@ -68,7 +68,7 @@ flamegraph samples: 16,219
 """
 
 if __name__ == '__main__':
-    test_file = "test_while_add.py"
+    test_file = "test_simple_if_for.py"
 
     rusty_time = benchmark_rusty(test_file)
     rs_time = benchmark_rs(test_file)

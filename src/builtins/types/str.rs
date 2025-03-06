@@ -12,7 +12,7 @@ pub fn py_str_tmp(obj: &PyObject, arena: &mut PyArena) -> FuncReturnType {
     
     let str_fn = str_fn.unwrap();
     
-    let str_rtn = call_function_1_arg_min(str_fn, obj, &[], arena);
+    let str_rtn = call_function_1_arg_min(&str_fn, obj, &[], arena);
     
     str_rtn  // TODO assert str_rtn is a string
 }

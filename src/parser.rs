@@ -41,53 +41,31 @@ pub enum Comparitor {
     NotIn,
 }
 
-#[derive(Debug)]
-pub enum Expr {
-    Var(String),
-    Val(Value),
-    Times(Box<Expr>, Box<Expr>),
-    Divide(Box<Expr>, Box<Expr>),
-    Plus(Box<Expr>, Box<Expr>),
-    Minus(Box<Expr>, Box<Expr>),
-    Pow(Box<Expr>, Box<Expr>),
-    FunCall(Box<Expr>, Vec<Expr>),
-    Comparison(Box<Expr>, Comparitor, Box<Expr>),
-}
-
-#[derive(Debug)]
-pub enum Define {
-    PlusEq(String, Expr),
-    MinusEq(String, Expr),
-    DivEq(String, Expr),
-    MultEq(String, Expr),
-    VarDefn(String, Expr),
-    FunDefn(String, Vec<String>, CodeBlock),
-}
-
-peg::parser! {
+parser! {
     pub grammar python_parser() for str {
-        pub rule sp() = quiet!{" "*}
-        pub rule sp1() = quiet!{" "+}
-        pub rule nosp() = !" "
-        pub rule nl() = ("\r\n" / "\n")+ / ";"
-        pub rule ws() = quiet!{("\r\n" / "\n" / " ")*}
+        rule sp() = quiet!{" "*}
+        rule sp1() = quiet!{" "+}
+        rule nosp() = !" "
+        rule nl() = "\r\n" / "\n" / ";"
+        rule next_line() = sp() (nl() **<1,> sp())
+        // rule ws() = quiet!{("\r\n" / "\n" / " ")*}
 
-        pub rule indent(min: usize) = quiet!{" "*<{min}>}
+        rule indent(min: usize) = quiet!{" "*<{min}>}
 
         // recognizes a variable name
-        pub rule id() -> String = s:$(['a'..='z' | 'A'..='Z' | '_']['a'..='z' | 'A'..='Z' | '0'..='9' | '_']*) {s.to_string()}
+        rule id() -> String = s:$(['a'..='z' | 'A'..='Z' | '_']['a'..='z' | 'A'..='Z' | '0'..='9' | '_']*) {s.to_string()}
         // recognizes a variable
-        pub rule var() -> Expr = v:id() {Expr::Var(v)}
+        rule var() -> Expr = v:id() {Expr::Var(v)}
 
-        pub rule float() -> f64 = n:$("-"? ['0'..='9']* "." ['0'..='9']+) {n.parse().unwrap()} / n:$("-"? ['0'..='9']+ "." ['0'..='9']*) {n.parse().unwrap()}
-        pub rule integer() -> i64 = n:$("-"? ['0'..='9']+) {n.parse().unwrap()}
-        pub rule string() -> String = "\"" s:$([^('\n' | '"')]*) "\"" {s.to_string()}  // TODO make string match correct
-        pub rule boolean() -> bool = $"True" {true} / $"False" {false}
-        pub rule none() -> Value = "None" {Value::None}
+        rule float() -> f64 = n:$("-"? ['0'..='9']* "." ['0'..='9']+) {n.parse().unwrap()} / n:$("-"? ['0'..='9']+ "." ['0'..='9']*) {n.parse().unwrap()}
+        rule integer() -> i64 = n:$("-"? ['0'..='9']+) {n.parse().unwrap()}
+        rule string() -> String = "\"" s:$([^('\n' | '"')]*) "\"" {s.to_string()}  // TODO make string match correct
+        rule boolean() -> bool = $"True" {true} / $"False" {false}
+        rule none() -> Value = "None" {Value::None}
 
-        pub rule val() -> Value = f:float() {Value::Float(f)} / i:integer() {Value::Integer(i)} / s:string() {Value::String(s)} / b:boolean() {Value::Boolean(b)} / n:none() {n}
+        rule val() -> Value = f:float() {Value::Float(f)} / i:integer() {Value::Integer(i)} / s:string() {Value::String(s)} / b:boolean() {Value::Boolean(b)} / n:none() {n}
 
-        pub rule expr() -> Expr = precedence!{
+        rule expr() -> Expr = precedence!{
             // logical or
             // logical and
             // logical not
@@ -120,7 +98,7 @@ peg::parser! {
             "(" e:expr() ")" {e}
         }
 
-        pub rule define() -> Define = //precedence!{
+        rule define() -> Define = //precedence!{
             // "def" sp1() f:id() sp() "(" sp() args:(id() ** (sp() "," sp())) sp() ")" sp() ": \n" sp() e:expr() {Define::FunDefn(f, args, e)} /
             v:id() sp() "=" sp() e:expr() {Define::VarDefn(v, e)}
             / v:id() sp() "+=" sp() e:expr() {Define::PlusEq(v, e)}
@@ -129,21 +107,25 @@ peg::parser! {
             / v:id() sp() "*=" sp() e:expr() {Define::MultEq(v, e)}
         //}
 
-        // pub rule statement(depth: usize) -> Statement = spaces:" "* d:define() {Statement::Defn(d, depth + spaces.len())}
-        // / spaces:" "* e:expr() {Statement::Expr(e, depth + spaces.len())}
+        rule if_(depth: usize) -> Statement = 
+            "if" sp1() cond:expr() sp() ":" next_line() if_code:code(depth + 1)
+            elif:(indent(depth) "elif" sp1() elif_cond:expr() sp() ":" next_line() elif_code:code(depth+1) {(elif_cond, elif_code)})* 
+            else_code:(indent(depth) "else" sp() ":" next_line() else_code:code(depth+1) {else_code})? {Statement::If(cond, if_code, elif, else_code)}
 
-        pub rule statement(depth: usize) -> Statement =
-        nosp() "for" sp1() v:id() sp1() "in" sp1() e:expr() sp() ":" sp() nl() c:code(depth + 1) {Statement::For(v, e, c)}
-        / nosp() "while" sp1() e:expr() sp() ":" sp() nl() c:code(depth + 1) {Statement::While(e, c)}
-        / nosp() "return" sp() e:expr() {Statement::Return(e)}
-        / nosp() "return" sp() {Statement::Return(Expr::Val(Value::None))}  // empty "return" statement
-        / nosp() "continue" {Statement::Continue}
-        / nosp() "break" {Statement::Break}
-        / nosp() d:define() {Statement::Defn(d)}
-        / nosp() e:expr() {Statement::Expr(e)}
+        rule statement(depth: usize) -> Statement =
+            if_statement:if_(depth) {if_statement}
+            / "for" sp1() v:id() sp1() "in" sp1() e:expr() sp() ":" next_line() c:code(depth + 1) {Statement::For(v, e, c)}
+            / "while" sp1() e:expr() sp() ":" next_line() c:code(depth + 1) {Statement::While(e, c)}
+            / "assert" sp1() e1:expr() e2:("," sp() e:expr() {e})?  {Statement::Assert(e1, e2)}
+            / "return" sp1() e:expr() {Statement::Return(e)}
+            / "return" sp() {Statement::Return(Expr::Val(Value::None))}  // empty "return" statement
+            / "continue" {Statement::Continue}
+            / "break" {Statement::Break}
+            / d:define() {Statement::Defn(d)}
+            / e:expr() {Statement::Expr(e)}
 
         // pub rule code(depth: usize) -> CodeBlock = &" "*<{depth}> spaces:" "*<{depth},> s:(statement(depth) ** nl()) sp() {CodeBlock::Block(s)}
-        pub rule code(depth: usize) -> CodeBlock = spaces:" "*<{depth},> statements:(statement(depth) ** (sp() nl() indent(spaces.len()))) {CodeBlock{statements, depth: spaces.len()}}
+        pub rule code(depth: usize) -> CodeBlock = spaces:" "*<{depth},> statements:(statement(depth) ** (next_line() indent(spaces.len()) nosp())) {CodeBlock{statements, depth: spaces.len()}}
 
 
         rule traced<T>(e: rule<T>) -> T =
@@ -162,12 +144,37 @@ peg::parser! {
 }
 
 #[derive(Debug)]
+pub enum Expr {
+    Var(String),
+    Val(Value),
+    Times(Box<Expr>, Box<Expr>),
+    Divide(Box<Expr>, Box<Expr>),
+    Plus(Box<Expr>, Box<Expr>),
+    Minus(Box<Expr>, Box<Expr>),
+    Pow(Box<Expr>, Box<Expr>),
+    FunCall(Box<Expr>, Vec<Expr>),
+    Comparison(Box<Expr>, Comparitor, Box<Expr>),
+}
+
+#[derive(Debug)]
+pub enum Define {
+    PlusEq(String, Expr),
+    MinusEq(String, Expr),
+    DivEq(String, Expr),
+    MultEq(String, Expr),
+    VarDefn(String, Expr),
+    FunDefn(String, Vec<String>, CodeBlock),
+}
+
+#[derive(Debug)]
 pub enum Statement {
     Expr(Expr),
     Defn(Define),
     For(String, Expr, CodeBlock), // TODO allow for variable unpacking
     While(Expr, CodeBlock),       // TODO allow for else block
+    If(Expr, CodeBlock, Vec<(Expr, CodeBlock)>, Option<CodeBlock>), // IfCond, Code, (ElIfCond, Code), ElseCode
     Return(Expr),
+    Assert(Expr, Option<Expr>),
     Continue,
     Break,
 }
