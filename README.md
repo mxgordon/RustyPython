@@ -35,6 +35,7 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 | test_addition      | ✔️ | optimized 😎                       |
 | test_deep_for_loop | ✔️ | optimized 😎                       |
 | test_while_add     | ✔️ | optimized 😎                       |
+| test_simple_if_for | ✔️ | optimized 😎                       |
 | test_primatives    | 🚧 | need to add all the primatives     |
 | test_control_flow  | ❌ | need to add if, strings & indexing |
 | test_tuple         | ❌ | need tuples and tuple unpacking    |
@@ -49,12 +50,13 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 | Operator overloading   | ✔️ |                                                              |
 | For Loops              | ✔️ | Doesn't support tuple unpacking (yet)                        |
 | Comments               | ✔️ |                                                              |
+| If/if-else Statements  | ✔️ |                                                              |
 | While Loops            | ✔️ | Close to CPython speeds!                                     |
 | Basic Math Operations  | 🚧 | still needs % and //                                         |
 | Math Assign Operations | 🚧 | still needs //=, @=, **=, no support for in-pace methods yet |
 | Primatives             | 🚧 | int, float, bool, None (limited implementation)              |
-| Built in types         | 🚧 | range only                                                   |
-| If/if-else Statements  | ❌ |                                                              |
+| Built in types         | 🚧 | range only                                                   |                                                       |
+| Keyword: assert        | 🚧 | parsing but not implemented
 | Match Statements       | ❌ |                                                              |
 | User-defined Functions | ❌ |                                                              |
 | User-define classes    | ❌ |                                                              |
@@ -65,6 +67,5 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 | Typeing                | ❌ |                                                              |
 | Keyword: with          | ❌ |                                                              |
 | Keyword: global        | ❌ |                                                              |
-| Keyword: assert        | ❌ |                                                              |
 | Keyword: del           | ❌ |                                                              |
 | Async                  | ❌ |                                                              |
