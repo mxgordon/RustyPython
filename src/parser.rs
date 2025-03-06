@@ -45,11 +45,11 @@ pub enum Comparitor {
 pub enum Expr {
     Var(String),
     Val(Value),
-    Times(Box<Expr>,Box<Expr>),
-    Divide(Box<Expr>,Box<Expr>),
-    Plus(Box<Expr>,Box<Expr>),
-    Minus(Box<Expr>,Box<Expr>),
-    Pow(Box<Expr>,Box<Expr>),
+    Times(Box<Expr>, Box<Expr>),
+    Divide(Box<Expr>, Box<Expr>),
+    Plus(Box<Expr>, Box<Expr>),
+    Minus(Box<Expr>, Box<Expr>),
+    Pow(Box<Expr>, Box<Expr>),
     FunCall(Box<Expr>, Vec<Expr>),
     Comparison(Box<Expr>, Comparitor, Box<Expr>),
 }
@@ -64,13 +64,12 @@ pub enum Define {
     FunDefn(String, Vec<String>, CodeBlock),
 }
 
-
-peg::parser!{
+peg::parser! {
     pub grammar python_parser() for str {
         pub rule sp() = quiet!{" "*}
         pub rule sp1() = quiet!{" "+}
         pub rule nosp() = !" "
-        pub rule nl() = ("\r\n" / "\n")+ / ";" 
+        pub rule nl() = ("\r\n" / "\n")+ / ";"
         pub rule ws() = quiet!{("\r\n" / "\n" / " ")*}
 
         pub rule indent(min: usize) = quiet!{" "*<{min}>}
@@ -101,7 +100,7 @@ peg::parser!{
             l:(@) sp() "<" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::LessThan, Box::new(r))}
             l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
             l:(@) sp1() "is" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::Is, Box::new(r))}
-            -- 
+            --
             // bitwise |
             // bitwise ^
             // bitwise &
@@ -135,6 +134,7 @@ peg::parser!{
 
         pub rule statement(depth: usize) -> Statement =
         nosp() "for" sp1() v:id() sp1() "in" sp1() e:expr() sp() ":" sp() nl() c:code(depth + 1) {Statement::For(v, e, c)}
+        / nosp() "while" sp1() e:expr() sp() ":" sp() nl() c:code(depth + 1) {Statement::While(e, c)}
         / nosp() "return" sp() e:expr() {Statement::Return(e)}
         / nosp() "return" sp() {Statement::Return(Expr::Val(Value::None))}  // empty "return" statement
         / nosp() "continue" {Statement::Continue}
@@ -143,7 +143,21 @@ peg::parser!{
         / nosp() e:expr() {Statement::Expr(e)}
 
         // pub rule code(depth: usize) -> CodeBlock = &" "*<{depth}> spaces:" "*<{depth},> s:(statement(depth) ** nl()) sp() {CodeBlock::Block(s)}
-        pub rule code(depth: usize) -> CodeBlock = spaces:" "*<{depth},> statements:(statement(depth) ** (nl() ws() indent(spaces.len()))) {CodeBlock{statements, depth: spaces.len()}}
+        pub rule code(depth: usize) -> CodeBlock = spaces:" "*<{depth},> statements:(statement(depth) ** (sp() nl() indent(spaces.len()))) {CodeBlock{statements, depth: spaces.len()}}
+
+
+        rule traced<T>(e: rule<T>) -> T =
+            &(input:$([_]*) {
+                #[cfg(feature = "trace")]
+                println!("[PEG_INPUT_START]\n{}\n[PEG_TRACE_START]", input);
+            })
+            e:e()? {?
+                #[cfg(feature = "trace")]
+                println!("[PEG_TRACE_STOP]");
+                e.ok_or("")
+            }
+        
+        pub rule code_traced() -> CodeBlock = traced(<code(0)>)
     }
 }
 
@@ -152,6 +166,7 @@ pub enum Statement {
     Expr(Expr),
     Defn(Define),
     For(String, Expr, CodeBlock), // TODO allow for variable unpacking
+    While(Expr, CodeBlock),       // TODO allow for else block
     Return(Expr),
     Continue,
     Break,
@@ -162,4 +177,3 @@ pub struct CodeBlock {
     pub statements: Vec<Statement>,
     pub depth: usize,
 }
-

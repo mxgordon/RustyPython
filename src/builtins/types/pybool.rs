@@ -21,7 +21,7 @@ pub fn expect_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bool, PyExce
 }
 
 
-pub fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<bool, PyException> {
+fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<bool, PyException> {
     let bool_func = mutable_obj.get_magic_method(&PyMagicMethod::Bool, arena);
 
     if let Some(bool_func) = bool_func {
@@ -39,7 +39,7 @@ pub fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, 
     Err(arena.exceptions.type_error.instantiate(message))
 }
 
-pub fn convert_immutable_to_bool(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<bool, PyException> {
+fn convert_immutable_to_bool(immutable_obj: &PyImmutableObject) -> Result<bool, PyException> {
     match *immutable_obj {
         PyImmutableObject::Bool(ref value) => Ok(*value),
         PyImmutableObject::Int(ref value) => Ok(*value != 0),  // copy the value
@@ -49,23 +49,27 @@ pub fn convert_immutable_to_bool(immutable_obj: &PyImmutableObject, arena: &mut 
     }
 }
 
+pub fn convert_pyobj_to_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bool, PyException> {
+    match *pyobj {
+        PyObject::Immutable(ref immutable) => convert_immutable_to_bool(immutable),
+        PyObject::Mutable(ref mutable) => convert_mutable_to_bool(pyobj, &mutable.borrow(), arena),
+        PyObject::Internal(_) => {todo!()}
+        PyObject::IteratorFlag(_) => {panic!()}
+    }
+}
+
 
 pub fn bool__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {  // error handling
     let arg = pyargs.first();
     let value;
     
     if let Some(arg) = arg {
-        value = match *arg {
-            PyObject::Immutable(ref immutable) => convert_immutable_to_bool(immutable, arena)?,
-            PyObject::Mutable(ref mutable) => convert_mutable_to_bool(arg, &mutable.borrow(), arena)?,
-            PyObject::Internal(_) => {todo!()}
-            PyObject::IteratorFlag(_) => {panic!()}
-        }
+        value = convert_pyobj_to_bool(arg, arena)?;
     } else {
         value = false;
     }
     
-    Ok(PyObject::new_bool(value))
+    Ok(arena.statics.get_bool(value).clone())
 }
 
 
@@ -76,7 +80,7 @@ pub fn bool__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
 
 pub fn bool__bool__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
     let value = expect_bool(&pyself, arena)?;
-    Ok(PyObject::new_bool(value))
+    Ok(arena.statics.get_bool(value).clone())
 }
 
 pub fn bool__int__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {

@@ -49,7 +49,7 @@ pub(crate) fn eval_internal_func(func: Rc<PyInternalFunction>, args: &[PyObject]
         }
         (PyInternalFunction::InitFunc(func), n) => {
             func(arena, &args[0], &args[1..n])?;
-            Ok(PyObject::none())  // init always returns None
+            Ok(arena.statics.none().clone())  // init always returns None
         }
         (PyInternalFunction::UnaryFunc(func), 1) => {
             func(arena, &args[0])
@@ -73,7 +73,7 @@ pub(crate) fn eval_internal_func_1_arg_min(func: Rc<PyInternalFunction>, first_a
         }
         (PyInternalFunction::InitFunc(func), _n) => {
             func(arena, first_arg, args)?;
-            Ok(PyObject::none())  // init always returns None
+            Ok(arena.statics.none().clone())  // init always returns None
         }
         (PyInternalFunction::UnaryFunc(func), 0) => {
             func(arena, first_arg)

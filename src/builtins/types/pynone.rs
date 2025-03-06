@@ -18,10 +18,10 @@ pub fn expect_none(pyobj: &PyObject, arena: &mut PyArena) -> Result<(), PyExcept
     }
 }
 
-pub fn none__new__(_arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {  
+pub fn none__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject]) -> FuncReturnType {  
     assert_eq!(pyargs.len(), 0); // TODO make python error
 
-    Ok(PyObject::none())
+    Ok(arena.statics.none().clone())
 }
 
 pub fn none__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {

@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::collections::hash_map::{RawEntryMut};
 use ahash::{AHashMap};
 use crate::builtins::globals::Globals;
+use crate::builtins::statics::Statics;
 use crate::builtins::structure::pyexception::Exceptions;
 use crate::builtins::structure::pyobject::{PyObject};
 
@@ -9,17 +10,20 @@ use crate::builtins::structure::pyobject::{PyObject};
 pub struct PyArena {
     state: AHashMap<String, Cell<PyObject>>,
     pub globals: Globals,
+    pub statics: Statics,
     pub exceptions: Exceptions,
 }
 
 impl PyArena {
     pub fn new() -> Self {
         let globals = Globals::new();
+        let statics = Statics::new();
         let exceptions = Exceptions::new();
 
         PyArena {
             state: globals.load_into_hashmap(),
             globals,
+            statics,
             exceptions
         }
     }

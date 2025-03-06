@@ -154,42 +154,42 @@ pub fn int__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
 pub fn int__eq__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value == other_value))
+    Ok(arena.statics.get_bool(self_value == other_value).clone())
 }
 
 
 pub fn int__gt__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value > other_value))
+    Ok(arena.statics.get_bool(self_value > other_value).clone())
 }
 
 
 pub fn int__lt__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value < other_value))
+    Ok(arena.statics.get_bool(self_value < other_value).clone())
 }
 
 
 pub fn int__ge__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value >= other_value))
+    Ok(arena.statics.get_bool(self_value >= other_value).clone())
 }
 
 
 pub fn int__le__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value <= other_value))
+    Ok(arena.statics.get_bool(self_value <= other_value).clone())
 }
 
 
 pub fn int__ne__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_bool(self_value != other_value))
+    Ok(arena.statics.get_bool(self_value != other_value).clone())
 }
 
 pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {

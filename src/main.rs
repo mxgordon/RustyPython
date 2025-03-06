@@ -39,7 +39,7 @@ fn main() {
     let contents = remove_comments(&contents);
     let contents = contents.trim();
     
-    let parse_tree = python_parser::code(contents, 0);
+    let parse_tree = python_parser::code_traced(contents);
     if let Ok(parse_tree) = parse_tree {
         
         // println!("{:?}", parse_tree);

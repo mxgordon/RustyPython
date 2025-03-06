@@ -152,7 +152,7 @@ pub fn range_iterator__next__(_arena: &mut PyArena, pyself: &PyObject) -> FuncRe
         let step = range_iterator_internal.step;
         
         if (step > 0 && *current >= stop) || (step < 0 && *current <= stop) {
-            return Ok(PyObject::stop_iteration())
+            return Ok(PyObject::stop_iteration())  // TODO change this, in CPython it just returns null
         }
         
         let rtn_val = PyObject::new_immutable(PyImmutableObject::Int(*current));

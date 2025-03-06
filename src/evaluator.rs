@@ -5,6 +5,8 @@ use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, Pow, Sub, TrueDiv};
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
+use crate::builtins::types::pybool::{convert_pyobj_to_bool};
+use crate::builtins::types::pyint::expect_int;
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
@@ -22,13 +24,13 @@ fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyExcept
     arena.get(name).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{name}' is not defined")))
 }
 
-fn eval_val(value: &Value) -> PyObject {
+fn eval_val(value: &Value, arena: &mut PyArena) -> PyObject {
     match value {
         Value::Integer(value) => PyObject::new_int(*value),
         Value::Float(value) => PyObject::new_float(*value),
         Value::String(value) => PyObject::new_string(value.clone()),
-        Value::Boolean(value) => PyObject::new_bool(*value),
-        Value::None => PyObject::none(),
+        Value::Boolean(value) => arena.statics.get_bool(*value).clone(),
+        Value::None => arena.statics.none().clone(),
     }
 }
 
@@ -99,7 +101,7 @@ fn eval_fun_call(func: &Box<Expr>, args: &[Expr], arena: &mut PyArena) -> FuncRe
 fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
         Expr::Var(name) => eval_var(name, arena).cloned(),
-        Expr::Val(value) => Ok(eval_val(value)),
+        Expr::Val(value) => Ok(eval_val(value, arena)),
         Expr::Times(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Mul {right: false}, arena),
         Expr::Divide(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena), // TODO implement __div__ (prob not)
         Expr::Plus(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Add {right: false}, arena),
@@ -148,7 +150,7 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     let mut next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
     let var_name = var.to_string();
     
-    arena.set(var_name.clone(), PyObject::none());  // set value to None to ensure it's occupied
+    arena.set(var_name.clone(), arena.statics.none().clone());  // set value to None to ensure it's occupied
     
     let cell = arena.get_cell(&var_name).expect("cell should exist").as_ptr();
 
@@ -189,15 +191,36 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     Ok(None)
 }
 
+fn eval_while(condition: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
+    while convert_pyobj_to_bool(&eval_expr(condition, arena)?, arena)? {
+        let return_value = eval_code_block(code, arena)?;
+
+        if let Some(return_value) = return_value {
+            match return_value {
+                PyObject::IteratorFlag(ref flag_type) => {
+                    match flag_type {
+                        PyIteratorFlag::Break => break,
+                        PyIteratorFlag::Continue => continue,
+                        _ => panic!("IteratorFlag should be Break or Continue")
+                    }
+                }
+                _ => return Ok(Some(return_value))
+            }
+        }
+
+    }
+
+    Ok(None)
+}
+
 fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     for statement in code.statements.iter() {
         let mut rtn_val: Option<PyObject> = None;
         match statement {
-            Statement::Expr(expr) => {
-                eval_expr(expr, arena)?;
-            }
+            Statement::Expr(expr) => { eval_expr(expr, arena)?; },
             Statement::Defn(define) => eval_defn(define, arena)?,
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena)?,
+            Statement::While(condition, code) => rtn_val = eval_while(condition, code, arena)?,
             Statement::Return(rtn_expr) => rtn_val = Some(eval_expr(rtn_expr, arena)?),
             Statement::Continue => rtn_val = Some(PyObject::continue_()),
             Statement::Break => rtn_val = Some(PyObject::break_()),

@@ -14,5 +14,5 @@ pub fn py_print(arena: &mut PyArena, args: &[PyObject]) -> FuncReturnType {
     
     println!("{}", result);
     
-    Ok(PyObject::none())
+    Ok(arena.statics.none().clone())
 }

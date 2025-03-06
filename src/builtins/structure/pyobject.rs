@@ -27,9 +27,6 @@ impl PyObject {
     pub fn new_float(value: f64) -> Self {
         Self::new_immutable(PyImmutableObject::Float(value))
     }
-    pub fn new_bool(value: bool) -> Self {
-        Self::new_immutable(PyImmutableObject::Bool(value))
-    }
     pub fn new_internal_class(value: Rc<PyClass>) -> Self {
         Self::new_internal(PyInternalObject::InternalClass(value))
     }
@@ -50,9 +47,6 @@ impl PyObject {
         PyObject::Internal(value)
     }
     
-    pub fn none() -> Self {
-        PyObject::Immutable(Rc::new(PyImmutableObject::None))
-    }
     
     pub fn break_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
         PyObject::IteratorFlag(PyIteratorFlag::Break)
@@ -60,6 +54,14 @@ impl PyObject {
     
     pub fn continue_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
         PyObject::IteratorFlag(PyIteratorFlag::Continue)
+    }
+    
+    pub fn create_new_none() -> Self {
+        PyObject::Immutable(Rc::new(PyImmutableObject::None))
+    }
+    
+    pub fn create_new_bool(value: bool) -> Self {
+        Self::new_immutable(PyImmutableObject::Bool(value))
     }
     
     pub fn stop_iteration() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)

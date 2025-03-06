@@ -13,3 +13,5 @@ ahash = "0.8.11"
 [profile.release]
 debug = true
 
+[features]
+trace = ["peg/trace"]

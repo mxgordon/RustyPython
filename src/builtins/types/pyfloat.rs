@@ -21,9 +21,9 @@ pub fn expect_float(pyobj: &PyObject, arena: &mut PyArena) -> Result<f64, PyExce
 
 pub fn expect_float_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<f64, PyException> {
     match **pyobj.expect_immutable() {
-        PyImmutableObject::Float(value) => {Ok(value)}
-        PyImmutableObject::Int(value) => {Ok(value as f64)}
-        PyImmutableObject::Bool(value) => {Ok(if value {1.0} else {0.0})}
+        PyImmutableObject::Float(ref value) => {Ok(*value)}
+        PyImmutableObject::Int(ref value) => {Ok(*value as f64)}
+        PyImmutableObject::Bool(ref value) => {Ok(if *value {1.0} else {0.0})}
         ref _value => {
             Err(arena.exceptions.not_implemented_error.empty())
         },
