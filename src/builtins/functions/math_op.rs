@@ -4,10 +4,10 @@ use crate::builtins::structure::pyobject::{FuncReturnType, PyObject};
 use crate::pyarena::PyArena;
 
 pub fn math_op(left: PyObject, right: PyObject, py_magic_method: PyMagicMethod, arena: &mut PyArena) -> FuncReturnType {
-    let ref left_math_func = left.get_magic_method(&py_magic_method, arena);
+    let left_math_func = left.get_magic_method(&py_magic_method, arena);
 
     if let Some(left_math_func) = left_math_func {
-        let math_result = call_function_1_arg_min(left_math_func, &left, &[right.clone()], arena);
+        let math_result = call_function_1_arg_min(&left_math_func, &left, &[right.clone()], arena);
 
         return match math_result {
             Ok(result) => Ok(result),
@@ -26,10 +26,10 @@ pub fn math_op(left: PyObject, right: PyObject, py_magic_method: PyMagicMethod, 
 fn right_hand_math_op(left: PyObject, right: PyObject, mut py_magic_method: PyMagicMethod,  arena: &mut PyArena) -> FuncReturnType {
     py_magic_method.make_right_handed();
     
-    let ref right_math_func = right.get_magic_method(&py_magic_method, arena);
+    let right_math_func = right.get_magic_method(&py_magic_method, arena);
 
     if let Some(right_math_fun) = right_math_func {
-        return call_function_1_arg_min(right_math_fun, &right, &[left], arena);
+        return call_function_1_arg_min(&right_math_fun, &right, &[left], arena);
     }
     
     println!("{:?} {}", right_math_func, py_magic_method);

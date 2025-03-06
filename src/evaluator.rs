@@ -215,18 +215,18 @@ fn eval_while(condition: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBl
 fn eval_if(cond: &Expr, if_code: &CodeBlock, elif_cond_code: &Vec<(Expr, CodeBlock)>, else_code: &Option<CodeBlock>, arena: &mut PyArena) -> CodeBlockReturn {
     if convert_pyobj_to_bool(&eval_expr(cond, arena)?, arena)? {
         return eval_code_block(if_code, arena);
-    } 
-    
+    }
+
     for (elif_cond, elif_code) in elif_cond_code {
         if convert_pyobj_to_bool(&eval_expr(elif_cond, arena)?, arena)? {
             return eval_code_block(elif_code, arena);
         }
     }
-    
+
     if let Some(else_code) = else_code {
         return eval_code_block(else_code, arena);
     }
-    
+
     Ok(None)
 }
 

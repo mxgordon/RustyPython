@@ -23,8 +23,8 @@ pub fn compare_op(left: &PyObject, right: &PyObject, comp: &Comparitor, arena: &
 fn left_hand_compare_op(op: &PyMagicMethod, left: &PyObject, right: &PyObject, arena: &mut PyArena) -> FuncReturnType {
     let left_compare_func = left.get_magic_method(op, arena);
     
-    if let Some(ref left_compare_func) = left_compare_func {
-        let left_compare = call_function_1_arg_min(left_compare_func, left, &[right.clone()], arena);
+    if let Some(left_compare_func) = left_compare_func {
+        let left_compare = call_function_1_arg_min(&left_compare_func, left, &[right.clone()], arena);
 
         return match left_compare {
             Ok(result) => Ok(result),
@@ -42,10 +42,10 @@ fn left_hand_compare_op(op: &PyMagicMethod, left: &PyObject, right: &PyObject, a
 
 fn right_hand_compare_op(op: &PyMagicMethod, left: &PyObject, right: &PyObject, arena: &mut PyArena) -> FuncReturnType {
     let right_op = flip_to_right_hand_op(op);
-    let ref right_compare_func = right.get_magic_method(right_op, arena);
+    let right_compare_func = right.get_magic_method(right_op, arena);
     
     if let Some(right_compare_func) = right_compare_func {
-        let right_compare = call_function_1_arg_min(right_compare_func, right, &[left.clone()], arena);
+        let right_compare = call_function_1_arg_min(&right_compare_func, right, &[left.clone()], arena);
         
         return match right_compare {
             Ok(result) => Ok(result),

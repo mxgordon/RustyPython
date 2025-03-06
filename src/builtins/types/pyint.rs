@@ -23,7 +23,7 @@ pub fn expect_int_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64
     match **pyobj.expect_immutable() {
         PyImmutableObject::Int(ref value) => {Ok(*value)}
         PyImmutableObject::Bool(ref value) => {Ok(*value as i64)}
-        ref value => {
+        ref _value => {
             Err(arena.exceptions.not_implemented_error.empty())
         },
     }
@@ -37,7 +37,7 @@ pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, a
 
         let int_result = expect_int(&func_result, arena);
 
-        return int_result.map_err(|error| {
+        return int_result.map_err(|_error| {
             let message = format!("{}.__int__ returned non-int (type {{<other type>}})", pyobj.clone_class(arena).get_name());
             arena.exceptions.type_error.instantiate(message)
         });

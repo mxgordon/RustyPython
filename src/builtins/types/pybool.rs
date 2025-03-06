@@ -22,14 +22,14 @@ pub fn expect_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bool, PyExce
 
 
 fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<bool, PyException> {
-    let ref bool_func = mutable_obj.get_magic_method(&PyMagicMethod::Bool, arena);
+    let bool_func = mutable_obj.get_magic_method(&PyMagicMethod::Bool, arena);
 
     if let Some(bool_func) = bool_func {
-        let func_result = call_function_1_arg_min(bool_func, pyobj, &[], arena)?;
+        let func_result = call_function_1_arg_min(&bool_func, pyobj, &[], arena)?;
 
         let bool_result = expect_bool(&func_result, arena);
 
-        return bool_result.map_err(|error| {
+        return bool_result.map_err(|_error| {
             let message = format!("{}.__bool__ should return bool, returned (type {{<other type>}})", pyobj.clone_class(arena).get_name());  // TODO inconsistent python error messaging?
             arena.exceptions.type_error.instantiate(message)
         });

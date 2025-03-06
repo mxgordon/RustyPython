@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::rc::Rc;
 use crate::builtins::types::object::expect_class;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
@@ -43,7 +42,7 @@ pub fn call_function_1_arg_min(func: &PyObject, first_arg: &PyObject, args: &[Py
 }
 
 pub(crate) fn eval_internal_func(func: &Rc<PyInternalFunction>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    match (func.deref(), args.len()) {
+    match (&**func, args.len()) {
         (PyInternalFunction::NewFunc(func), n) => {
             func(arena, expect_class(&args[0]), &args[1..n])  // TODO find a way to not clone the class
         }
@@ -67,7 +66,7 @@ pub(crate) fn eval_internal_func(func: &Rc<PyInternalFunction>, args: &[PyObject
 }
 
 pub(crate) fn eval_internal_func_1_arg_min(func: &Rc<PyInternalFunction>, first_arg: &PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    match (func.deref(), args.len()) {
+    match (&**func, args.len()) {
         (PyInternalFunction::NewFunc(func), _n) => {
             func(arena, expect_class(first_arg), args)
         }
@@ -101,23 +100,23 @@ pub(crate) fn eval_obj_init(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut
         panic!("{:?} has no __init__ method", pyclass)
     }
 
-    let ref new_func = new_func.unwrap();
-    let ref init_func = init_func.unwrap();
+    let new_func = new_func.unwrap();
+    let init_func = init_func.unwrap();
 
-    let new_object = call_function_1_arg_min(new_func, &PyObject::new_internal_class(pyclass), &args, arena)?;
+    let new_object = call_function_1_arg_min(&new_func, &PyObject::new_internal_class(pyclass), args, arena)?;
 
-    let _init_rtn = call_function_1_arg_min(init_func, &new_object, args, arena)?; // TODO check if init_rtn is None
+    let _init_rtn = call_function_1_arg_min(&init_func, &new_object, args, arena)?; // TODO check if init_rtn is None
 
     Ok(new_object)
 }
 
 pub(crate) fn init_internal_class(pyclass: Rc<PyClass>, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
-    let ref new_func = pyclass.get_magic_method_internal(&PyMagicMethod::New).unwrap();
-    let ref init_func = pyclass.get_magic_method_internal(&PyMagicMethod::Init).unwrap();
+    let new_func = pyclass.get_magic_method_internal(&PyMagicMethod::New).unwrap();
+    let init_func = pyclass.get_magic_method_internal(&PyMagicMethod::Init).unwrap();
     
-    let new_object = eval_internal_func_1_arg_min(new_func, &PyObject::new_internal_class(pyclass), &args, arena)?;
+    let new_object = eval_internal_func_1_arg_min(&new_func, &PyObject::new_internal_class(pyclass), args, arena)?;
 
-    eval_internal_func_1_arg_min(init_func, &new_object, args, arena)?;
+    eval_internal_func_1_arg_min(&init_func, &new_object, args, arena)?;
     
     Ok(new_object)
 }

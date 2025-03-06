@@ -31,7 +31,7 @@ impl PyException {
     }
 
     pub fn add_trace(&mut self, trace: Box<dyn Display>) {
-        if let None = self.traceback {
+        if self.traceback.is_none() {
             self.traceback = Some(vec![]);
         }
         self.traceback.as_mut().unwrap().push(trace.to_string());
@@ -61,6 +61,7 @@ impl Display for PyException {
     }
 }
 
+#[warn(dead_code)]
 #[derive(Debug)]
 pub struct Exceptions {
     // hierarchy based on https://docs.python.org/3/library/exceptions.html#exception-hierarchy
