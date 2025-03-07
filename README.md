@@ -30,42 +30,42 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 
 | Test Name          | Status | Notes                              |
 |--------------------|--------|------------------------------------|
-| test_object        | ✔️ |                                    |
-| test_simple        | ✔️ | should include more int operations |
-| test_addition      | ✔️ | optimized 😎                       |
-| test_deep_for_loop | ✔️ | optimized 😎                       |
-| test_while_add     | ✔️ | optimized 😎                       |
-| test_simple_if_for | ✔️ | optimized 😎                       |
-| test_primatives    | 🚧 | need to add all the primatives     |
-| test_control_flow  | ❌ | need to add if, strings & indexing |
-| test_tuple         | ❌ | need tuples and tuple unpacking    |
+| test_object        | ✔️     |                                    |
+| test_simple        | ✔️     | should include more int operations |
+| test_addition      | ✔️     | optimized 😎                       |
+| test_deep_for_loop | ✔️     | optimized 😎                       |
+| test_while_add     | ✔️     | optimized 😎                       |
+| test_simple_if_for | ✔️     | optimized 😎                       |
+| test_primatives    | 🚧     | need to add all the primatives     |
+| test_control_flow  | ❌      | need to add if, strings & indexing |
+| test_tuple         | ❌      | need tuples and tuple unpacking    |
 
 
 ## Supported Features
 
 | Feature                | Supported | Notes                                                        |
-|------------------------|------|--------------------------------------------------------------|
-| User-defined Variables | ✔️ |                                                              |
-| Print Function         | ✔️ |                                                              |
-| Operator overloading   | ✔️ |                                                              |
-| For Loops              | ✔️ | Doesn't support tuple unpacking (yet)                        |
-| Comments               | ✔️ |                                                              |
-| If/if-else Statements  | ✔️ |                                                              |
-| While Loops            | ✔️ | Close to CPython speeds!                                     |
-| Basic Math Operations  | 🚧 | still needs % and //                                         |
-| Math Assign Operations | 🚧 | still needs //=, @=, **=, no support for in-pace methods yet |
-| Primatives             | 🚧 | int, float, bool, None (limited implementation)              |
-| Built in types         | 🚧 | range only                                                   |                                                       |
-| Keyword: assert        | 🚧 | parsing but not implemented
-| Match Statements       | ❌ |                                                              |
-| User-defined Functions | ❌ |                                                              |
-| User-define classes    | ❌ |                                                              |
-| User-define modules    | ❌ |                                                              |
-| Error Handling         | ❌ |                                                              |
-| Generators             | ❌ |                                                              |
-| Importing modules      | ❌ |                                                              |
-| Typeing                | ❌ |                                                              |
-| Keyword: with          | ❌ |                                                              |
-| Keyword: global        | ❌ |                                                              |
-| Keyword: del           | ❌ |                                                              |
-| Async                  | ❌ |                                                              |
+|------------------------|-----------|--------------------------------------------------------------|
+| User-defined Variables | ✔️        |                                                              |
+| Print Function         | ✔️        |                                                              |
+| Operator overloading   | ✔️        |                                                              |
+| For Loops              | ✔️        | Doesn't support tuple unpacking (yet)                        |
+| Comments               | ✔️        |                                                              |
+| If/if-else Statements  | ✔️        |                                                              |
+| While Loops            | ✔️        | Close to CPython speeds!                                     |
+| Basic Math Operations  | 🚧        | still needs % and //                                         |
+| Math Assign Operations | 🚧        | still needs //=, @=, **=, no support for in-pace methods yet |
+| Primatives             | 🚧        | int, float, bool, None (limited implementation)              |
+| Built in types         | 🚧        | range only                                                   |                                                       |
+| Keyword: assert        | 🚧        | parsing but not implemented                                  |
+| Match Statements       | ❌         |                                                              |
+| User-defined Functions | ❌         |                                                              |
+| User-define classes    | ❌         |                                                              |
+| User-define modules    | ❌         |                                                              |
+| Error Handling         | ❌         |                                                              |
+| Generators             | ❌         |                                                              |
+| Importing modules      | ❌         |                                                              |
+| Typeing                | ❌         |                                                              |
+| Keyword: with          | ❌         |                                                              |
+| Keyword: global        | ❌         |                                                              |
+| Keyword: del           | ❌         |                                                              |
+| Async                  | ❌         |                                                              |

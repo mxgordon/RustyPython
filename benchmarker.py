@@ -68,7 +68,7 @@ flamegraph samples: 16,219
 """
 
 if __name__ == '__main__':
-    test_file = "test_simple_if_for.py"
+    test_file = "test_addition.py"
 
     rusty_time = benchmark_rusty(test_file)
     rs_time = benchmark_rs(test_file)
@@ -77,5 +77,10 @@ if __name__ == '__main__':
     print(f"RustyPython: {rusty_time}s")
     print(f"RustPython: {rs_time}s" )
     print(f"CPython: {py_time}s")
-    print(f"{rusty_time/py_time :.2f}x slower than CPython")
+
+    if rusty_time > py_time:
+        print(f"{rusty_time/py_time :.2f}x slower than CPython")
+    else:
+        print(f"{py_time/rusty_time :.2f}x faster than CPython")
+
     print(f"{rs_time/rusty_time :.2f}x faster than RustPython")

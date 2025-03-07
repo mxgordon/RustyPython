@@ -38,7 +38,7 @@ pub fn convert_mutable_to_float(pyobj: &PyObject, mutable_obj: &PyMutableObject,
 
         let float_result = expect_float(&func_result, arena);
 
-        return float_result.map_err(|error| {
+        return float_result.map_err(|_error| {
                 let message = format!("{}.__float__ returned non-float (type {{<other type>}})", pyobj.clone_class(arena).get_name());
                 arena.exceptions.type_error.instantiate(message)
         });

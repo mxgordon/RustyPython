@@ -1,4 +1,4 @@
-use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
+use crate::builtins::function_utils::{call_function, call_function_1_arg_min, eval_internal_func, eval_obj_init};
 use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
@@ -126,6 +126,22 @@ fn eval_op_equals(var_name: &String, expr: &Expr, op: PyMagicMethod, arena: &mut
     
     Ok(())
 }
+
+// fn eval_assert(expr1: &Expr, expr2: &Option<Expr>, arena: &mut PyArena) -> EmptyFuncReturnType {
+//     let result1 = eval_expr(expr1, arena)?;
+//     
+//     if let Some(expr2) = expr2 {
+//         let result2 = eval_expr(expr2, arena)?;
+//         
+//         let is_equal = compare_op(&result1, &result2, &Comparitor::Equal, arena)?;
+//         
+//         if !convert_pyobj_to_bool(&is_equal, arena)? {
+//             let repr_method = result2.get_magic_method(&PyMagicMethod::Repr, arena)?;
+//             let msg = call_function_1_arg_min()
+//             Err(arena.exceptions.assertion_error.instantiate())
+//         }
+//     }
+// }
 
 fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
