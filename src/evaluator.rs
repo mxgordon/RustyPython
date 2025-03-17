@@ -1,4 +1,4 @@
-use crate::builtins::function_utils::{call_function, call_function_1_arg_min, eval_internal_func, eval_obj_init};
+use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
@@ -6,6 +6,7 @@ use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, Pow, Su
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
 use crate::builtins::types::pybool::{convert_pyobj_to_bool};
+use crate::builtins::types::str::py_repr;
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
@@ -97,6 +98,40 @@ fn eval_fun_call(func: &Box<Expr>, args: &[Expr], arena: &mut PyArena) -> FuncRe
 //     call_function(func, &func_args, arena)
 // }
 
+fn eval_not(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
+    let pyobj = eval_expr(expr, arena)?;
+    
+    let boolean = convert_pyobj_to_bool(&pyobj, arena)?;
+
+    Ok(arena.statics.get_bool(!boolean).clone())
+}
+
+fn eval_and(expr1: &Expr, expr2: &Expr, arena: &mut PyArena) -> FuncReturnType {
+    let pyobj1 = eval_expr(expr1, arena)?;
+    let boolean1 = convert_pyobj_to_bool(&pyobj1, arena)?;
+
+    if !boolean1 {
+        return Ok(pyobj1);
+    }
+
+    let pyobj2 = eval_expr(expr2, arena)?;
+
+    Ok(pyobj2)
+}
+
+fn eval_or(expr1: &Expr, expr2: &Expr, arena: &mut PyArena) -> FuncReturnType {
+    let pyobj1 = eval_expr(expr1, arena)?;
+    let boolean1 = convert_pyobj_to_bool(&pyobj1, arena)?;
+
+    if boolean1 {
+        return Ok(pyobj1);
+    }
+
+    let pyobj2 = eval_expr(expr2, arena)?;
+
+    Ok(pyobj2)
+}
+
 fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
         Expr::Var(name) => eval_var(name, arena).cloned(),
@@ -108,6 +143,9 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
         Expr::Pow(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Pow {right: false}, arena),
         Expr::Comparison(first, comp, second) => compare_op(&eval_expr(first, arena)?, &eval_expr(second, arena)?, comp, arena),
         Expr::FunCall(name, args) => eval_fun_call(name, args, arena),
+        Expr::Not(expr) => eval_not(expr, arena),
+        Expr::And(first, second) => eval_and(first, second, arena),
+        Expr::Or(first, second) => eval_or(first, second, arena),
     }
 }
 
@@ -127,21 +165,28 @@ fn eval_op_equals(var_name: &String, expr: &Expr, op: PyMagicMethod, arena: &mut
     Ok(())
 }
 
-// fn eval_assert(expr1: &Expr, expr2: &Option<Expr>, arena: &mut PyArena) -> EmptyFuncReturnType {
-//     let result1 = eval_expr(expr1, arena)?;
-//     
-//     if let Some(expr2) = expr2 {
-//         let result2 = eval_expr(expr2, arena)?;
-//         
-//         let is_equal = compare_op(&result1, &result2, &Comparitor::Equal, arena)?;
-//         
-//         if !convert_pyobj_to_bool(&is_equal, arena)? {
-//             let repr_method = result2.get_magic_method(&PyMagicMethod::Repr, arena)?;
-//             let msg = call_function_1_arg_min()
-//             Err(arena.exceptions.assertion_error.instantiate())
-//         }
-//     }
-// }
+fn eval_assert(expr1: &Expr, expr2: &Option<Expr>, arena: &mut PyArena) -> EmptyFuncReturnType {
+    let result1 = eval_expr(expr1, arena)?;
+    
+    if let Some(expr2) = expr2 {
+        let result2 = eval_expr(expr2, arena)?;
+        
+        let is_equal = compare_op(&result1, &result2, &Comparitor::Equal, arena)?;
+        
+        if !convert_pyobj_to_bool(&is_equal, arena)? {
+            let msg = py_repr(&result2, arena)?.expect_immutable().expect_string();
+            return Err(arena.exceptions.assertion_error.instantiate(msg));
+        }
+        
+        return Ok(());
+    }
+    
+    if !convert_pyobj_to_bool(&result1, arena)? {
+        return Err(arena.exceptions.assertion_error.empty());
+    }
+    
+    Ok(())
+}
 
 fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
@@ -256,7 +301,7 @@ fn eval_code_block(code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
             Statement::For(iter_var, iter_exp, code) => rtn_val = eval_for(iter_var, iter_exp, code, arena)?,
             Statement::While(condition, code) => rtn_val = eval_while(condition, code, arena)?,
             Statement::Return(rtn_expr) => rtn_val = Some(eval_expr(rtn_expr, arena)?),
-            Statement::Assert(expr1, expr2) => todo!(),
+            Statement::Assert(expr1, expr2) => eval_assert(expr1, expr2, arena)?,
             Statement::Continue => rtn_val = Some(PyObject::continue_()),
             Statement::Break => rtn_val = Some(PyObject::break_()),
         };

@@ -52,11 +52,11 @@ Once the `assert` and method definition is added, more sophisticated tests will 
 | Comments               | ✔️        |                                                              |
 | If/if-else Statements  | ✔️        |                                                              |
 | While Loops            | ✔️        | Close to CPython speeds!                                     |
+| Keyword: assert        | ✔️        |                                                              |
 | Basic Math Operations  | 🚧        | still needs % and //                                         |
 | Math Assign Operations | 🚧        | still needs //=, @=, **=, no support for in-pace methods yet |
 | Primatives             | 🚧        | int, float, bool, None (limited implementation)              |
 | Built in types         | 🚧        | range only                                                   |                                                       |
-| Keyword: assert        | 🚧        | parsing but not implemented                                  |
 | Match Statements       | ❌         |                                                              |
 | User-defined Functions | ❌         |                                                              |
 | User-define classes    | ❌         |                                                              |

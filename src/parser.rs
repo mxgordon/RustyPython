@@ -66,9 +66,6 @@ parser! {
         rule val() -> Value = f:float() {Value::Float(f)} / i:integer() {Value::Integer(i)} / s:string() {Value::String(s)} / b:boolean() {Value::Boolean(b)} / n:none() {n}
 
         rule expr() -> Expr = precedence!{
-            // logical or
-            // logical and
-            // logical not
             // comparisons ==, !=, >, >=, <, <=, is, is not, in, not in
             l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
             l:(@) sp() "!=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::NotEqual, Box::new(r))}
@@ -91,6 +88,11 @@ parser! {
             -- // Unary ops here
             l:@ sp() "**" sp() r:(@) {Expr::Pow(Box::new(l), Box::new(r))}
             --
+            l:(@) sp1() "and" sp1() r:@ {Expr::And(Box::new(l), Box::new(r))}
+            l:(@) sp1() "or" sp1() r:@ {Expr::Or(Box::new(l), Box::new(r))}
+            --
+            "not" sp1() v:expr() {Expr::Not(Box::new(v))}
+            --
             v:val() {Expr::Val(v)}
             f:var() sp() "(" sp() args:(expr() ** (sp() "," sp())) sp() ")" {Expr::FunCall(Box::new(f), args)}
             v:var() {v}
@@ -108,9 +110,9 @@ parser! {
         //}
 
         rule if_(depth: usize) -> Statement = 
-            "if" sp1() cond:expr() sp() ":" next_line() if_code:code(depth + 1)
-            elif:(indent(depth) "elif" sp1() elif_cond:expr() sp() ":" next_line() elif_code:code(depth+1) {(elif_cond, elif_code)})* 
-            else_code:(indent(depth) "else" sp() ":" next_line() else_code:code(depth+1) {else_code})? {Statement::If(cond, if_code, elif, else_code)}
+            "if" sp1() cond:expr() sp() ":" next_line() if_code:code(depth + 1) 
+            elif:(next_line() indent(depth) "elif" sp1() elif_cond:expr() sp() ":" next_line() elif_code:code(depth+1) {(elif_cond, elif_code)})*
+            else_code:(next_line() indent(depth) "else" sp() ":" next_line() else_code:code(depth+1) {else_code})? {Statement::If(cond, if_code, elif, else_code)}
 
         rule statement(depth: usize) -> Statement =
             if_statement:if_(depth) {if_statement}
@@ -154,6 +156,9 @@ pub enum Expr {
     Pow(Box<Expr>, Box<Expr>),
     FunCall(Box<Expr>, Vec<Expr>),
     Comparison(Box<Expr>, Comparitor, Box<Expr>),
+    Not(Box<Expr>),
+    And(Box<Expr>, Box<Expr>),
+    Or(Box<Expr>, Box<Expr>),
 }
 
 #[derive(Debug)]

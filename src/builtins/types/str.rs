@@ -16,3 +16,17 @@ pub fn py_str_tmp(obj: &PyObject, arena: &mut PyArena) -> FuncReturnType {
     
     str_rtn  // TODO assert str_rtn is a string
 }
+
+pub fn py_repr(obj: &PyObject, arena: &mut PyArena) -> FuncReturnType {
+    let repr_fn = obj.expect_immutable().get_magic_method(&PyMagicMethod::Repr, arena);
+    
+    if repr_fn.is_none() {
+        panic!("Object has no __repr__ method");
+    }
+    
+    let repr_fn = repr_fn.unwrap();
+    
+    let repr_rtn = call_function_1_arg_min(&repr_fn, obj, &[], arena);
+    
+    repr_rtn  // TODO assert repr_rtn is a string
+}
