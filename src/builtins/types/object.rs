@@ -51,7 +51,7 @@ pub fn get_object_class() -> PyClass {
         name: "object".to_string(),
         super_classes: vec![],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(object__new__ as NewFuncType)))),
             __init__: Some(Rc::new(InitFunc(&(object__init__ as InitFuncType)))),
 
@@ -59,6 +59,6 @@ pub fn get_object_class() -> PyClass {
             __repr__: Some(Rc::new(UnaryFunc(&(object__repr__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }

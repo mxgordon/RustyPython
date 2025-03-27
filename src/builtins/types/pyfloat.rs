@@ -144,7 +144,7 @@ pub fn get_float_class(object_class: Rc<PyClass>) -> PyClass {
         name: "float".to_string(),
         super_classes: vec![object_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(float__new__ as NewFuncType)))),
             
             __repr__: Some(Rc::new(UnaryFunc(&(float__repr__ as UnaryFuncType)))),
@@ -161,6 +161,6 @@ pub fn get_float_class(object_class: Rc<PyClass>) -> PyClass {
             __rpow__: Some(Rc::new(BivariateFunc(&(float__rpow__ as BivariateFuncType)))),
             
             ..py_magic_methods_defaults()
-        },
+        }),
     }.create()
 }

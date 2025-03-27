@@ -34,13 +34,13 @@ pub fn get_none_class(object_class: Rc<PyClass>) -> PyClass {
         name: "NoneType".to_string(),
         super_classes: vec![object_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(none__new__ as NewFuncType)))),
 
             __repr__: Some(Rc::new(UnaryFunc(&(none__repr__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }
 

@@ -197,7 +197,7 @@ pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {
         name: "int".to_string(),
         super_classes: vec![object_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(int__new__ as NewFuncType)))),
 
             __repr__: Some(Rc::new(UnaryFunc(&(int__repr__ as UnaryFuncType)))),
@@ -221,7 +221,7 @@ pub fn get_int_class(object_class: Rc<PyClass>) -> PyClass {
             __ne__: Some(Rc::new(BivariateFunc(&(int__ne__ as BivariateFuncType)))),
 
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }
 

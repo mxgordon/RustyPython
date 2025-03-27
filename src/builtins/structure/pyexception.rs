@@ -85,6 +85,7 @@ pub struct Exceptions {
         pub key_error: Rc<PyException>,
     pub memory_error: Rc<PyException>,
     pub name_error: Rc<PyException>,
+        pub unbound_local_error: Rc<PyException>,
     pub os_error: Rc<PyException>,
     pub reference_error: Rc<PyException>,
     pub runtime_error: Rc<PyException>,
@@ -121,6 +122,7 @@ impl Exceptions {
             let key_error = PyException::new("KeyError", vec![lookup_error.clone()]);
         let memory_error = PyException::new("MemoryError", vec![exception.clone()]);
         let name_error = PyException::new("NameError", vec![exception.clone()]);
+            let unbound_local_error = PyException::new("UnboundLocalError", vec![name_error.clone()]);
         let os_error = PyException::new("OSError", vec![exception.clone()]);
         let reference_error = PyException::new("ReferenceError", vec![exception.clone()]);
         let runtime_error = PyException::new("RuntimeError", vec![exception.clone()]);
@@ -152,6 +154,7 @@ impl Exceptions {
             key_error,
             memory_error,
             name_error,
+            unbound_local_error,
             os_error,
             reference_error,
             runtime_error,

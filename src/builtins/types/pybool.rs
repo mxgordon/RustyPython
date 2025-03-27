@@ -39,19 +39,20 @@ fn convert_mutable_to_bool(pyobj: &PyObject, mutable_obj: &PyMutableObject, aren
     Err(arena.exceptions.type_error.instantiate(message))
 }
 
-fn convert_immutable_to_bool(immutable_obj: &PyImmutableObject) -> Result<bool, PyException> {
+fn convert_immutable_to_bool(immutable_obj: &PyImmutableObject, arena: &mut PyArena) -> Result<bool, PyException> {
     match *immutable_obj {
         PyImmutableObject::Bool(ref value) => Ok(*value),
         PyImmutableObject::Int(ref value) => Ok(*value != 0),  // copy the value
         PyImmutableObject::Float(ref value) => Ok(*value != 0.0),
         PyImmutableObject::Str(ref value) => Ok(!value.is_empty()),
-        PyImmutableObject::None => Ok(false)
+        PyImmutableObject::None => Ok(false),
+        PyImmutableObject::NotImplemented => Err(arena.exceptions.type_error.instantiate("Evaluating NotImplemented in a boolean context is not possible".to_string())),
     }
 }
 
 pub fn convert_pyobj_to_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bool, PyException> {
     match *pyobj {
-        PyObject::Immutable(ref immutable) => convert_immutable_to_bool(immutable),
+        PyObject::Immutable(ref immutable) => convert_immutable_to_bool(immutable, arena),
         PyObject::Mutable(ref mutable) => convert_mutable_to_bool(pyobj, &mutable.borrow(), arena),
         PyObject::Internal(_) => {todo!()}
         PyObject::IteratorFlag(_) => {panic!()}
@@ -95,7 +96,7 @@ pub fn get_bool_class(int_class: Rc<PyClass>) -> PyClass {
         name: "bool".to_string(),
         super_classes: vec![int_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(bool__new__ as NewFuncType)))),
 
             __repr__: Some(Rc::new(UnaryFunc(&(bool__repr__ as UnaryFuncType)))),
@@ -104,7 +105,7 @@ pub fn get_bool_class(int_class: Rc<PyClass>) -> PyClass {
             __int__: Some(Rc::new(UnaryFunc(&(bool__int__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }
 

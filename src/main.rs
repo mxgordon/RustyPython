@@ -1,18 +1,19 @@
 #![feature(fn_traits)]
 // #![feature(let_chains)]
 #![feature(hash_raw_entry)]
+#![feature(get_mut_unchecked)]
 
 mod parser;
 mod evaluator;
 mod pyarena;
 mod builtins;
+mod preprocessor;
 
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use parser::python_parser;
 use crate::evaluator::{evaluate};
-use crate::parser::remove_comments;
+use crate::parser::{parse_code, remove_comments};
 
 #[macro_use]
 extern crate mopa;
@@ -32,17 +33,17 @@ fn main() {
         panic!("Expect 1 arg for the test file name, got: {}", args.len() - 1);
     } else {
         let filename = &args[1];
-        let mut file = File::open("tests/".to_string() + filename).expect(format!("file not found: {}", filename).as_str());
+        let mut file = File::open("tests/".to_string() + filename).unwrap_or_else(|_| panic!("file not found: {}", filename));
 
         let _ = file.read_to_string(&mut contents);
     }
     let contents = remove_comments(&contents);
     let contents = contents.trim();
     
-    let parse_tree = python_parser::code_traced(contents);
+    let parse_tree = parse_code(contents);
     if let Ok(parse_tree) = parse_tree {
         
-        // println!("{:?}", parse_tree);
+        println!("{:?}", parse_tree);
         
         evaluate(parse_tree);
         

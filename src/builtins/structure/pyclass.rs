@@ -14,7 +14,7 @@ pub enum PyClass {
     Internal {
         name: String,
         super_classes: Vec<Rc<PyClass>>,
-        magic_methods: PyMagicMethods,
+        magic_methods: Box<PyMagicMethods>,
         attributes: AHashMap<String, PyObject>,
     },
     // Exception {exception: PyExceptionType},

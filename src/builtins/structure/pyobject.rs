@@ -60,6 +60,10 @@ impl PyObject {
         PyObject::Immutable(Rc::new(PyImmutableObject::None))
     }
     
+    pub fn create_new_not_implemented() -> Self {
+        PyObject::Immutable(Rc::new(PyImmutableObject::NotImplemented))
+    }
+    
     pub fn create_new_bool(value: bool) -> Self {
         Self::new_immutable(PyImmutableObject::Bool(value))
     }
@@ -106,12 +110,22 @@ impl PyObject {
             PyObject::Internal(_) => {todo!()}
         }
     }
+
+    pub fn get_memory_location(&self) -> usize {
+        match self {
+            PyObject::Immutable(immutable) => &*immutable.clone() as *const PyImmutableObject as usize,
+            PyObject::Mutable(mutable) => &*mutable.clone().borrow() as *const PyMutableObject as usize,
+            PyObject::Internal(internal) => internal.get_memory_location(),
+            PyObject::IteratorFlag(flag) => flag as *const PyIteratorFlag as usize
+        }
+    }
 }
 
 
 #[derive(Debug)]
 pub enum PyImmutableObject {
     None,
+    NotImplemented,
     Int(i64),
     Float(f64),
     Bool(bool),
@@ -126,6 +140,7 @@ impl PyImmutableObject {
             PyImmutableObject::Float(_) => {&arena.globals.float_class}
             PyImmutableObject::Bool(_) => {&arena.globals.bool_class}
             PyImmutableObject::Str(_) => {todo!()}
+            PyImmutableObject::NotImplemented => {todo!()}
         }
     }
     
@@ -159,6 +174,13 @@ impl PyInternalObject {
         match self {
             PyInternalObject::InternalFunction(slot) => slot.clone(),
             _ => panic!("Expected internal slot"), // TODO make python error
+        }
+    }
+
+    pub fn get_memory_location(&self) -> usize {
+        match self {
+            PyInternalObject::InternalFunction(func) => &**func as *const PyInternalFunction as usize,
+            PyInternalObject::InternalClass(class_) => &**class_ as *const PyClass as usize,
         }
     }
 }

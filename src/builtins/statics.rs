@@ -6,6 +6,8 @@ pub struct Statics {
     false_: PyObject,
     
     none_: PyObject,
+    
+    not_implemented: PyObject,
 }
 
 impl Statics {
@@ -15,6 +17,8 @@ impl Statics {
             false_: PyObject::create_new_bool(false),
             
             none_: PyObject::create_new_none(),
+            
+            not_implemented: PyObject::create_new_not_implemented(),
         }
     }
     
@@ -28,5 +32,9 @@ impl Statics {
     
     pub fn none(&self) -> &PyObject {
         &self.none_
+    }
+    
+    pub fn not_implemented(&self) -> &PyObject {
+        &self.not_implemented
     }
 }

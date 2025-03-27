@@ -1,3 +1,6 @@
+use std::cell::Ref;
+use std::ops::Deref;
+use std::rc::Rc;
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
@@ -10,18 +13,27 @@ use crate::builtins::types::str::py_repr;
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
-pub fn evaluate(code: CodeBlock) {
-    let mut arena =  PyArena::new();
+pub fn evaluate(code: ScopedCodeBlock) {
+    let mut arena =  PyArena::new(code.fast_local_size);
     
-    let code_result = eval_code_block(&code, &mut arena);
+    let code_result = eval_code_block(&code.code, &mut arena);
     
     if let Err(err) = code_result {
         println!("{}", err);
     }
 }
 
-fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyException> {
-    arena.get(name).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{name}' is not defined")))
+fn eval_var<'a>(variable: &Rc<Variable>, arena: &'a PyArena) -> Result<Ref<'a, PyObject>, PyException> {
+    // if let Some(fl_loc) = variable.fast_locals_loc {
+    //     let fast_local = arena.get_current_frame().get_fast_local(fl_loc);
+    //     
+    //     return if let Some(fast_local) = fast_local {
+    //         Ok(fast_local)
+    //     } else {
+    //         Err(arena.exceptions.unbound_local_error.instantiate(format!("cannot access local variable '{}' where it is not associated with a value", variable.name)))
+    //     }
+    // }
+    arena.search_for_var(variable).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{}' is not defined", variable.name)))
 }
 
 fn eval_val(value: &Value, arena: &mut PyArena) -> PyObject {
@@ -100,7 +112,7 @@ fn eval_fun_call(func: &Box<Expr>, args: &[Expr], arena: &mut PyArena) -> FuncRe
 
 fn eval_not(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     let pyobj = eval_expr(expr, arena)?;
-    
+
     let boolean = convert_pyobj_to_bool(&pyobj, arena)?;
 
     Ok(arena.statics.get_bool(!boolean).clone())
@@ -134,7 +146,7 @@ fn eval_or(expr1: &Expr, expr2: &Expr, arena: &mut PyArena) -> FuncReturnType {
 
 fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     match expr {
-        Expr::Var(name) => eval_var(name, arena).cloned(),
+        Expr::Var(name) => Ok(eval_var(name, arena)?.deref().clone()),
         Expr::Val(value) => Ok(eval_val(value, arena)),
         Expr::Times(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, Mul {right: false}, arena),
         Expr::Divide(first, second) => math_op(eval_expr(first, arena)?, eval_expr(second, arena)?, TrueDiv {right: false}, arena), // TODO implement __div__ (prob not)
@@ -149,18 +161,21 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
     }
 }
 
-fn eval_defn_var(name: String, expr: &Expr, arena: &mut PyArena) -> EmptyFuncReturnType {
+fn eval_defn_var(variable: &Rc<Variable>, expr: &Expr, arena: &mut PyArena) -> EmptyFuncReturnType {
     let result = eval_expr(expr, arena)?;
-    arena.set(name, result);
+    arena.get_current_frame_mut().set(variable, result);
     
     Ok(())
 }
 
-fn eval_op_equals(var_name: &String, expr: &Expr, op: PyMagicMethod, arena: &mut PyArena) -> EmptyFuncReturnType {
+fn eval_op_equals(variable: &Rc<Variable>, expr: &Expr, op: PyMagicMethod, arena: &mut PyArena) -> EmptyFuncReturnType {
     // TODO check if in-place funcs are defined and use them if so
-    let new_value = math_op(eval_var(var_name, arena)?.clone(), eval_expr(expr, arena)?, op, arena)?;
+    let old_value = eval_var(variable, arena)?.clone();
     
-    arena.update(var_name, new_value);
+    let new_value = math_op(old_value, eval_expr(expr, arena)?, op, arena)?;
+    
+    // arena.get_current_frame_mut().update_from_var(variable, new_value);
+    arena.get_current_frame_mut().set(variable, new_value);
     
     Ok(())
 }
@@ -190,16 +205,16 @@ fn eval_assert(expr1: &Expr, expr2: &Option<Expr>, arena: &mut PyArena) -> Empty
 
 fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
     match define {
-        Define::PlusEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
-        Define::MinusEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
-        Define::DivEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
-        Define::MultEq(var_name, expr) => eval_op_equals(var_name, expr, Add {right: false}, arena),
-        Define::VarDefn(name, expr) => { eval_defn_var(name.clone(), expr, arena) },
-        Define::FunDefn(_, _, _) => {todo!()}
+        Define::PlusEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
+        Define::MinusEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
+        Define::DivEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
+        Define::MultEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
+        Define::VarDefn(variable, expr) => { eval_defn_var(variable, expr, arena) },
+        Define::FunDefn(variable, args, code) => {todo!()}
     }
 }
 
-fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
+fn eval_for(iter_variable: &Rc<Variable>, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> CodeBlockReturn {
     let iterable = eval_expr(iter, arena)?;
     let iter_func = iterable.get_magic_method(&PyMagicMethod::Iter, arena).unwrap();  // TODO Make python error
     
@@ -208,11 +223,18 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
     let next_func = iterator.get_magic_method(&PyMagicMethod::Next, arena).unwrap_or_else(|| panic!("Iterator doesn't have __next__ method"));
     
     let mut next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
-    let var_name = var.to_string();
+    // let var_name = var.to_string();
     
-    arena.set(var_name.clone(), arena.statics.none().clone());  // set value to None to ensure it's occupied
+    let none_value = arena.statics.none().clone();
     
-    let cell = arena.get_cell(&var_name).expect("cell should exist").as_ptr();
+    let current_frame = arena.get_current_frame_mut();
+    
+    current_frame.set(iter_variable, none_value);  // set value to None to ensure it's occupied
+    
+    let var_frame = current_frame.get(iter_variable).expect("This better be here").clone();
+    let mut var_frame_ref = var_frame.borrow_mut();
+    
+    // let cell = arena.get_current_frame().get_cell(&iter_variable.name).expect("cell should exist").as_ptr();
 
     while let Ok(ref mut next_val) = next_func_rtn {
         if let PyObject::IteratorFlag(flag_type) = next_val {
@@ -222,9 +244,14 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
             }
         }
         
-        unsafe {  // ! I think this is chill
-            *cell = next_val.clone();
-        }
+        // let mut var_ref = var_frame_ref.borrow_mut();
+        *var_frame_ref = next_func.clone();
+        
+        // current_frame.set(iter_variable, next_val.clone());
+        
+        // unsafe {  // ! I think this is chill
+        //     *cell = next_val.clone();
+        // }
         
         let code_result = eval_code_block(code, arena)?;
 
@@ -244,7 +271,6 @@ fn eval_for(var: &str, iter: &Expr, code: &CodeBlock, arena: &mut PyArena) -> Co
         next_func_rtn = call_function(next_func.clone(), &[iterator.clone()], arena);
         
     };
-    arena.remove(var);  // clear iterator variable from scope
     
     next_func_rtn?;
     

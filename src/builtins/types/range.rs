@@ -95,7 +95,7 @@ pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
         name: "range".to_string(),
         super_classes: vec![object_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(range__new__ as NewFuncType)))),
 
             __repr__: Some(Rc::new(UnaryFunc(&(range__repr__ as UnaryFuncType)))),
@@ -103,7 +103,7 @@ pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
             __iter__: Some(Rc::new(UnaryFunc(&(range__iter__ as UnaryFuncType)))),
 
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }
 
@@ -170,11 +170,11 @@ pub fn get_range_iterator_class(object_class: Rc<PyClass>) -> PyClass {
         name: "range_iterator".to_string(),
         super_classes: vec![object_class],
         attributes: AHashMap::new(),
-        magic_methods: PyMagicMethods {
+        magic_methods: Box::new(PyMagicMethods {
             __new__: Some(Rc::new(NewFunc(&(range_iterator__new__ as NewFuncType)))),
             
             __next__: Some(Rc::new(UnaryFunc(&(range_iterator__next__ as UnaryFuncType)))),
             ..py_magic_methods_defaults()
-        }
+        })
     }.create()
 }

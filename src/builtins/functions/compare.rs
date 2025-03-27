@@ -13,11 +13,18 @@ pub fn compare_op(left: &PyObject, right: &PyObject, comp: &Comparitor, arena: &
         Comparitor::GreaterThan => left_hand_compare_op(&PyMagicMethod::Gt, left, right, arena),
         Comparitor::GreaterThanOrEqual => left_hand_compare_op(&PyMagicMethod::Ge, left, right, arena),
 
-        Comparitor::Is => {todo!()}
-        Comparitor::IsNot => {todo!()}
+        Comparitor::Is => Ok(is_compare(false, left, right, arena)),
+        Comparitor::IsNot => Ok(is_compare(true, left, right, arena)),
         Comparitor::In => {todo!()}
         Comparitor::NotIn => {todo!()}
     }
+}
+
+fn is_compare(not: bool, left: &PyObject, right: &PyObject, arena: &mut PyArena) -> PyObject {
+    let left_loc = left.get_memory_location();
+    let right_loc = right.get_memory_location();
+    
+    arena.statics.get_bool((left_loc == right_loc) != not).clone()
 }
 
 fn left_hand_compare_op(op: &PyMagicMethod, left: &PyObject, right: &PyObject, arena: &mut PyArena) -> FuncReturnType {
@@ -25,16 +32,13 @@ fn left_hand_compare_op(op: &PyMagicMethod, left: &PyObject, right: &PyObject, a
     
     if let Some(left_compare_func) = left_compare_func {
         let left_compare = call_function_1_arg_min(&left_compare_func, left, &[right.clone()], arena);
-
-        return match left_compare {
-            Ok(result) => Ok(result),
-            Err(err) => {
-                if err.is_same_type(&arena.exceptions.not_implemented_error) {
-                    return right_hand_compare_op(op, left, right, arena)
-                }
-                Err(err)
-            },
-        };
+        
+        return left_compare.or_else(|err| {
+            if err.is_same_type(&arena.exceptions.not_implemented_error) {
+                return right_hand_compare_op(op, left, right, arena);
+            }
+            Err(err)
+        })
     }
     
     right_hand_compare_op(op, left, right, arena)
