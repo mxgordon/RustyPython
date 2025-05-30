@@ -47,14 +47,25 @@ impl Globals {
         }
     }
     
-    pub fn create_exposed_globals(&self) -> Vec<(String, Rc<RefCell<PyObject>>)> {
+    pub fn create_exposed_globals(&self) -> AHashMap<String, Cell<PyObject>> {
         vec![
-            ("object".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.object_class.clone())))),
-            ("int".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.int_class.clone())))),
-            ("bool".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.bool_class.clone())))),
-            ("float".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.float_class.clone())))),
-            ("range".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.range_class.clone())))),
-            ("print".to_string(), Rc::new(RefCell::new(PyObject::new_internal_func(self.print_func.clone())))),
-        ]//.into_iter().collect()
+            ("object".to_string(), Cell::new(PyObject::new_internal_class(self.object_class.clone()))),
+            ("int".to_string(), Cell::new(PyObject::new_internal_class(self.int_class.clone()))),
+            ("bool".to_string(), Cell::new(PyObject::new_internal_class(self.bool_class.clone()))),
+            ("float".to_string(), Cell::new(PyObject::new_internal_class(self.float_class.clone()))),
+            ("range".to_string(), Cell::new(PyObject::new_internal_class(self.range_class.clone()))),
+            ("print".to_string(), Cell::new(PyObject::new_internal_func(self.print_func.clone()))),
+        ].into_iter().collect()
     }
+    
+    // pub fn create_exposed_globals(&self) -> Vec<(String, Rc<RefCell<PyObject>>)> {
+    //     vec![
+    //         ("object".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.object_class.clone())))),
+    //         ("int".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.int_class.clone())))),
+    //         ("bool".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.bool_class.clone())))),
+    //         ("float".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.float_class.clone())))),
+    //         ("range".to_string(), Rc::new(RefCell::new(PyObject::new_internal_class(self.range_class.clone())))),
+    //         ("print".to_string(), Rc::new(RefCell::new(PyObject::new_internal_func(self.print_func.clone())))),
+    //     ]//.into_iter().collect()
+    // }
 }

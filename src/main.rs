@@ -41,13 +41,13 @@ fn main() {
     let contents = contents.trim();
     
     let parse_tree = parse_code(contents);
-    if let Ok(parse_tree) = parse_tree {
+    if let Ok(parse_tree) = parse_tree.0 {
         
         println!("{:?}", parse_tree);
         
         evaluate(parse_tree);
         
-    } else if let Err(parse_tree_err) = parse_tree {
+    } else if let Err(parse_tree_err) = parse_tree.0 {
         println!("Char: \"{}\"({})\nError: {:?}", contents.chars().nth(parse_tree_err.location.offset).unwrap_or_default(), contents.bytes().nth(parse_tree_err.location.offset).unwrap_or_default(), parse_tree_err);
     }
 }

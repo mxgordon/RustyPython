@@ -13,28 +13,32 @@ use crate::builtins::types::str::py_repr;
 use crate::parser::*;
 use crate::pyarena::PyArena;
 
-pub fn evaluate(code: ScopedCodeBlock) {
-    let mut arena =  PyArena::new(code.fast_local_size);
+pub fn evaluate(code: CodeBlock) {
+    let mut arena =  PyArena::new();
     
-    let code_result = eval_code_block(&code.code, &mut arena);
+    let code_result = eval_code_block(&code, &mut arena);
     
     if let Err(err) = code_result {
         println!("{}", err);
     }
 }
 
-fn eval_var<'a>(variable: &Rc<Variable>, arena: &'a PyArena) -> Result<Ref<'a, PyObject>, PyException> {
-    // if let Some(fl_loc) = variable.fast_locals_loc {
-    //     let fast_local = arena.get_current_frame().get_fast_local(fl_loc);
-    //     
-    //     return if let Some(fast_local) = fast_local {
-    //         Ok(fast_local)
-    //     } else {
-    //         Err(arena.exceptions.unbound_local_error.instantiate(format!("cannot access local variable '{}' where it is not associated with a value", variable.name)))
-    //     }
-    // }
-    arena.search_for_var(variable).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{}' is not defined", variable.name)))
+fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyException> {
+    arena.get(name).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{name}' is not defined")))
 }
+
+// fn eval_var<'a>(variable: &Rc<Variable>, arena: &'a PyArena) -> Result<Ref<'a, PyObject>, PyException> {
+//     // if let Some(fl_loc) = variable.fast_locals_loc {
+//     //     let fast_local = arena.get_current_frame().get_fast_local(fl_loc);
+//     //     
+//     //     return if let Some(fast_local) = fast_local {
+//     //         Ok(fast_local)
+//     //     } else {
+//     //         Err(arena.exceptions.unbound_local_error.instantiate(format!("cannot access local variable '{}' where it is not associated with a value", variable.name)))
+//     //     }
+//     // }
+//     arena.search_for_var(variable).ok_or_else(|| arena.exceptions.name_error.instantiate(format!("name '{}' is not defined", variable.name)))
+// }
 
 fn eval_val(value: &Value, arena: &mut PyArena) -> PyObject {
     match value {
@@ -186,7 +190,7 @@ fn eval_assert(expr1: &Expr, expr2: &Option<Expr>, arena: &mut PyArena) -> Empty
     if let Some(expr2) = expr2 {
         let result2 = eval_expr(expr2, arena)?;
         
-        let is_equal = compare_op(&result1, &result2, &Comparitor::Equal, arena)?;
+        let is_equal = compare_op(&result1, &result2, &Comparator::Equal, arena)?;
         
         if !convert_pyobj_to_bool(&is_equal, arena)? {
             let msg = py_repr(&result2, arena)?.expect_immutable().expect_string();
@@ -210,7 +214,7 @@ fn eval_defn(define: &Define, arena: &mut PyArena) -> EmptyFuncReturnType {
         Define::DivEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
         Define::MultEq(variable, expr) => eval_op_equals(variable, expr, Add {right: false}, arena),
         Define::VarDefn(variable, expr) => { eval_defn_var(variable, expr, arena) },
-        Define::FunDefn(variable, args, code) => {todo!()}
+        Define::FunDefn(variable, args, code, scope) => {todo!()}
     }
 }
 

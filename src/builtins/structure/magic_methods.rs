@@ -161,7 +161,7 @@ impl PyMagicMethod {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PyMagicMethods {
     // --- internal functions ---
     // Instantiating functions

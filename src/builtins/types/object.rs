@@ -7,6 +7,7 @@ use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyinstance::PyInstance;
 use crate::builtins::structure::pyobject::{InitFuncType, EmptyFuncReturnType, FuncReturnType, NewFuncType, UnaryFuncType, PyObject, PyMutableObject, PyImmutableObject, PyInternalObject};
 use crate::builtins::structure::pyobject::PyInternalFunction::{InitFunc, NewFunc, UnaryFunc};
+use crate::parser::Define;
 use crate::pyarena::PyArena;
 
 
@@ -58,7 +59,7 @@ pub fn get_object_class() -> PyClass {
             __str__: Some(Rc::new(UnaryFunc(&(object__str__ as UnaryFuncType)))),
             __repr__: Some(Rc::new(UnaryFunc(&(object__repr__ as UnaryFuncType)))),
 
-            ..py_magic_methods_defaults()
+            ..Default::default()
         })
     }.create()
 }

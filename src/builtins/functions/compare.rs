@@ -1,22 +1,22 @@
 use crate::builtins::function_utils::call_function_1_arg_min;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyobject::{FuncReturnType, PyObject};
-use crate::parser::Comparitor;
+use crate::parser::Comparator;
 use crate::pyarena::PyArena;
 
-pub fn compare_op(left: &PyObject, right: &PyObject, comp: &Comparitor, arena: &mut PyArena) -> FuncReturnType {
+pub fn compare_op(left: &PyObject, right: &PyObject, comp: &Comparator, arena: &mut PyArena) -> FuncReturnType {
     match comp {
-        Comparitor::Equal => left_hand_compare_op(&PyMagicMethod::Eq, left, right, arena),
-        Comparitor::NotEqual => left_hand_compare_op(&PyMagicMethod::Ne, left, right, arena),
-        Comparitor::LessThan => left_hand_compare_op(&PyMagicMethod::Lt, left, right, arena),
-        Comparitor::LessThanOrEqual => left_hand_compare_op(&PyMagicMethod::Le, left, right, arena),
-        Comparitor::GreaterThan => left_hand_compare_op(&PyMagicMethod::Gt, left, right, arena),
-        Comparitor::GreaterThanOrEqual => left_hand_compare_op(&PyMagicMethod::Ge, left, right, arena),
+        Comparator::Equal => left_hand_compare_op(&PyMagicMethod::Eq, left, right, arena),
+        Comparator::NotEqual => left_hand_compare_op(&PyMagicMethod::Ne, left, right, arena),
+        Comparator::LessThan => left_hand_compare_op(&PyMagicMethod::Lt, left, right, arena),
+        Comparator::LessThanOrEqual => left_hand_compare_op(&PyMagicMethod::Le, left, right, arena),
+        Comparator::GreaterThan => left_hand_compare_op(&PyMagicMethod::Gt, left, right, arena),
+        Comparator::GreaterThanOrEqual => left_hand_compare_op(&PyMagicMethod::Ge, left, right, arena),
 
-        Comparitor::Is => Ok(is_compare(false, left, right, arena)),
-        Comparitor::IsNot => Ok(is_compare(true, left, right, arena)),
-        Comparitor::In => {todo!()}
-        Comparitor::NotIn => {todo!()}
+        Comparator::Is => Ok(is_compare(false, left, right, arena)),
+        Comparator::IsNot => Ok(is_compare(true, left, right, arena)),
+        Comparator::In => {todo!()}
+        Comparator::NotIn => {todo!()}
     }
 }
 

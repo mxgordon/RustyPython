@@ -1,10 +1,9 @@
-use std::rc::Rc;
-use std::cell::{RefCell, RefMut};
-use std::env::var;
+use std::cell::RefCell;
 use peg::*;
-use ahash::AHashMap;
 use peg::error::ParseError;
 use peg::str::LineCol;
+use std::rc::Rc;
+use ahash::AHashMap;
 
 pub fn remove_comments(input: &str) -> String {
     let mut output = String::new();
@@ -33,40 +32,13 @@ pub enum Value {
     None,
 }
 
-pub fn parse_code(code: &str) -> Result<ScopedCodeBlock, ParseError<LineCol>> {
+pub fn parse_code(code: &str) -> (Result<CodeBlock, ParseError<LineCol>>, AHashMap<String, ScopeInformation>) {
     let variables = RefCell::new(AHashMap::new());
-    let fast_local_count = RefCell::new(0);
 
-    python_parser::code_traced(code, &variables, &fast_local_count)
+    let code_result = python_parser::code_traced(code, &variables);
+
+    (code_result, variables.into_inner())
 }
-
-
-fn remove_from_fast_locals(mut variables: RefMut<AHashMap<String, Rc<Variable>>>, mut variable: Rc<Variable>) {
-    let removed_number = variable.fast_locals_loc.expect("Variable not in fast locals");
-
-    unsafe {
-        Rc::get_mut_unchecked(&mut variable).fast_locals_loc = None;
-    }
-    
-    for (_name, mut variable) in variables.iter_mut() {
-        if let Some(fast_locals_loc) = variable.fast_locals_loc {
-            if fast_locals_loc > removed_number {
-                unsafe {
-                    Rc::get_mut_unchecked(&mut variable).fast_locals_loc = Some(fast_locals_loc - 1);
-                }
-            }
-        }
-    }
-}
-
-fn add_to_fast_locals(mut variable: Rc<Variable>, fast_locals_size: &mut usize) {
-    unsafe {
-        Rc::get_mut_unchecked(&mut variable).fast_locals_loc = Some(*fast_locals_size);
-    }
-    
-    *fast_locals_size += 1;
-}
-
 
 
 parser! {
@@ -84,47 +56,28 @@ parser! {
         rule id() -> String = s:$(['a'..='z' | 'A'..='Z' | '_']['a'..='z' | 'A'..='Z' | '0'..='9' | '_']*) {s.to_string()}
         // recognizes a variable
         // rule var() -> Expr = v:id() {Expr::Var(v)}
-        rule var(variables: &RefCell<AHashMap<String, Rc<Variable>>>, fast_local_count: &RefCell<usize>, is_def: bool) -> Rc<Variable> = name:id() {
-            let mut variables = variables.borrow_mut();
-            let mut fast_local_count = fast_local_count.borrow_mut();
-
-            let variable = variables.get(&name).cloned();
-
-            if name == "print" {
-                println!("print: {is_def}");
-            }
-
-            if let Some(variable) = variable {
-                // if is_def && variable.fast_locals_loc.is_none() {
-                //     add_to_fast_locals(variable.clone(), &mut fast_local_count);
-                // } else if !is_def && variable.fast_locals_loc.is_some() {
-                //     remove_from_fast_locals(variables, variable.clone());
-                // }
-                
-                return variable.clone()
-            } 
-            
-            if is_def {
-                let new_var = Rc::new(Variable {
-                    name: name.clone(),
-                    fast_locals_loc: Some(*fast_local_count),
-                });
-
-                *fast_local_count += 1;
-
-                variables.insert(name, new_var.clone());
-
-                return new_var;
-            }
-
-            let new_var = Rc::new(Variable {
-                name: name.clone(),
-                fast_locals_loc: None,
-            });
-
-            variables.insert(name, new_var.clone());
-
-            new_var
+        rule var(variables: &RefCell<AHashMap<String, ScopeInformation>>) -> Rc<Variable> = name:id() {
+            name
+            // let mut variables = variables.borrow_mut();
+            // 
+            // let scope_info_option = variables.get(&name).cloned();
+            // 
+            // let scope_info = scope_info_option.unwrap_or_else(|| {
+            //     let scope_info = ScopeInformation {
+            //         variable: Rc::new(Variable {
+            //             name: name.clone(),
+            //             fast_locals_location: None
+            //         }),
+            //         uses: 0,
+            //         has_definition: false
+            //     };
+            //     
+            //     variables.insert(name, scope_info.clone());
+            //     
+            //     scope_info
+            // });
+            // 
+            // scope_info.variable.clone()
         }
 
         rule float() -> f64 = n:$("-"? ['0'..='9']* "." ['0'..='9']+) {n.parse().unwrap()} / n:$("-"? ['0'..='9']+ "." ['0'..='9']*) {n.parse().unwrap()}
@@ -135,19 +88,19 @@ parser! {
 
         rule val() -> Value = f:float() {Value::Float(f)} / i:integer() {Value::Integer(i)} / s:string() {Value::String(s)} / b:boolean() {Value::Boolean(b)} / n:none() {n}
 
-        rule expr(vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> Expr = precedence!{
+        rule expr(vars: &RefCell<AHashMap<String, ScopeInformation>>) -> Expr = precedence!{
             // comparisons ==, !=, >, >=, <, <=, is, is not, in, not in
-            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
-            l:(@) sp() "!=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::NotEqual, Box::new(r))}
-            l:(@) sp() ">=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::GreaterThanOrEqual, Box::new(r))}
-            l:(@) sp() "<=" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::LessThanOrEqual, Box::new(r))}
-            l:(@) sp() ">" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::GreaterThan, Box::new(r))}
-            l:(@) sp() "<" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::LessThan, Box::new(r))}
-            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparitor::Equal, Box::new(r))}
-            l:(@) sp1() "is" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::Is, Box::new(r))}
-            l:(@) sp1() "is" sp1() "not" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::IsNot, Box::new(r))}
-            l:(@) sp1() "in" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::In, Box::new(r))}
-            l:(@) sp1() "not" sp1() "in" sp1() r:@ {Expr::Comparison(Box::new(l), Comparitor::NotIn, Box::new(r))}
+            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::Equal, Box::new(r))}
+            l:(@) sp() "!=" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::NotEqual, Box::new(r))}
+            l:(@) sp() ">=" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::GreaterThanOrEqual, Box::new(r))}
+            l:(@) sp() "<=" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::LessThanOrEqual, Box::new(r))}
+            l:(@) sp() ">" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::GreaterThan, Box::new(r))}
+            l:(@) sp() "<" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::LessThan, Box::new(r))}
+            l:(@) sp() "==" sp() r:@ {Expr::Comparison(Box::new(l), Comparator::Equal, Box::new(r))}
+            l:(@) sp1() "is" sp1() r:@ {Expr::Comparison(Box::new(l), Comparator::Is, Box::new(r))}
+            l:(@) sp1() "is" sp1() "not" sp1() r:@ {Expr::Comparison(Box::new(l), Comparator::IsNot, Box::new(r))}
+            l:(@) sp1() "in" sp1() r:@ {Expr::Comparison(Box::new(l), Comparator::In, Box::new(r))}
+            l:(@) sp1() "not" sp1() "in" sp1() r:@ {Expr::Comparison(Box::new(l), Comparator::NotIn, Box::new(r))}
             --
             // bitwise |
             // bitwise ^
@@ -164,49 +117,47 @@ parser! {
             l:(@) sp1() "and" sp1() r:@ {Expr::And(Box::new(l), Box::new(r))}
             l:(@) sp1() "or" sp1() r:@ {Expr::Or(Box::new(l), Box::new(r))}
             --
-            "not" sp1() v:expr(vars, fl_cnt) {Expr::Not(Box::new(v))}
+            "not" sp1() v:expr(vars) {Expr::Not(Box::new(v))}
             --
             v:val() {Expr::Val(v)}
-            f:var(vars, fl_cnt, false) sp() "(" sp() args:(expr(vars, fl_cnt) ** (sp() "," sp())) sp() ")" {Expr::FunCall(Box::new(Expr::Var(f)), args)} // `f` should be an expression for more robuts parsing (might create loop(?))
-            v:var(vars, fl_cnt, false) {Expr::Var(v)}
+            f:var(vars) sp() "(" sp() args:(expr(vars) ** (sp() "," sp())) sp() ")" {Expr::FunCall(Box::new(Expr::Var(f)), args)} // `f` should be an expression for more robuts parsing (might create loop(?))
+            v:var(vars) {Expr::Var(v)}
             --
-            "(" e:expr(vars, fl_cnt) ")" {e}
+            "(" e:expr(vars) ")" {e}
         }
 
-        rule function_definition(depth: usize, vars: RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: RefCell<usize>) -> Define =
-            "def" sp1() f:var(&vars, &fl_cnt, true) sp() "(" sp() args:(var(&vars, &fl_cnt, true) ** (sp() "," sp())) sp() ")" sp() ":" next_line() c:scoped_code(depth+1, &vars, &fl_cnt) {Define::FunDefn(f, args, c)}
+        rule function_definition(depth: usize, vars: RefCell<AHashMap<String, ScopeInformation>>) -> Define =
+            "def" sp1() f:var(&vars) sp() "(" sp() args:(var(&vars) ** (sp() "," sp())) sp() ")" sp() ":" next_line() c:code(depth+1, &vars) {Define::FunDefn(f, args, c, vars.into_inner())}
 
 
-        rule define(depth: usize, vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> Define =
-            func:function_definition(depth, RefCell::new(AHashMap::new()), RefCell::new(0)) {func}
-            / v:var(vars, fl_cnt, true) sp() "=" sp() e:expr(vars, fl_cnt) {Define::VarDefn(v, e)}
-            / v:var(vars, fl_cnt, true) sp() "+=" sp() e:expr(vars, fl_cnt) {Define::PlusEq(v, e)}
-            / v:var(vars, fl_cnt, true) sp() "-=" sp() e:expr(vars, fl_cnt) {Define::MinusEq(v, e)}
-            / v:var(vars, fl_cnt, true) sp() "/=" sp() e:expr(vars, fl_cnt) {Define::DivEq(v, e)}
-            / v:var(vars, fl_cnt, true) sp() "*=" sp() e:expr(vars, fl_cnt) {Define::MultEq(v, e)}
+        rule define(depth: usize, vars: &RefCell<AHashMap<String, ScopeInformation>>) -> Define =
+            func:function_definition(depth, RefCell::new(AHashMap::new())) {func}
+            / v:var(vars) sp() "=" sp() e:expr(vars) {Define::VarDefn(v, e)}
+            / v:var(vars) sp() "+=" sp() e:expr(vars) {Define::PlusEq(v, e)}
+            / v:var(vars) sp() "-=" sp() e:expr(vars) {Define::MinusEq(v, e)}
+            / v:var(vars) sp() "/=" sp() e:expr(vars) {Define::DivEq(v, e)}
+            / v:var(vars) sp() "*=" sp() e:expr(vars) {Define::MultEq(v, e)}
 
-        rule if_(depth: usize, vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> Statement =
-            "if" sp1() cond:expr(vars, fl_cnt) sp() ":" next_line() if_code:code(depth + 1, vars, fl_cnt)
-            elif:(next_line() indent(depth) "elif" sp1() elif_cond:expr(vars, fl_cnt) sp() ":" next_line() elif_code:code(depth+1, vars, fl_cnt) {(elif_cond, elif_code)})*
-            else_code:(next_line() indent(depth) "else" sp() ":" next_line() else_code:code(depth+1, vars, fl_cnt) {else_code})? {Statement::If(cond, if_code, elif, else_code)}
+        rule if_(depth: usize, vars: &RefCell<AHashMap<String, ScopeInformation>>) -> Statement =
+            "if" sp1() cond:expr(vars) sp() ":" next_line() if_code:code(depth + 1, vars)
+            elif:(next_line() indent(depth) "elif" sp1() elif_cond:expr(vars) sp() ":" next_line() elif_code:code(depth+1, vars) {(elif_cond, elif_code)})*
+            else_code:(next_line() indent(depth) "else" sp() ":" next_line() else_code:code(depth+1, vars) {else_code})? {Statement::If(cond, if_code, elif, else_code)}
 
-        rule statement(depth: usize, vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> Statement =
-            if_statement:if_(depth, vars, fl_cnt) {if_statement}
-            / "for" sp1() v:var(vars, fl_cnt, true) sp1() "in" sp1() e:expr(vars, fl_cnt) sp() ":" next_line() c:code(depth + 1, vars, fl_cnt) {Statement::For(v, e, c)}
-            / "while" sp1() e:expr(vars, fl_cnt) sp() ":" next_line() c:code(depth + 1, vars, fl_cnt) {Statement::While(e, c)}
-            / "assert" sp1() e1:expr(vars, fl_cnt) e2:("," sp() e:expr(vars, fl_cnt) {e})?  {Statement::Assert(e1, e2)}
-            / "return" sp1() e:expr(vars, fl_cnt) {Statement::Return(e)}
+        rule statement(depth: usize, vars: &RefCell<AHashMap<String, ScopeInformation>>) -> Statement =
+            if_statement:if_(depth, vars) {if_statement}
+            / "for" sp1() v:var(vars) sp1() "in" sp1() e:expr(vars) sp() ":" next_line() c:code(depth + 1, vars) {Statement::For(v, e, c)}
+            / "while" sp1() e:expr(vars) sp() ":" next_line() c:code(depth + 1, vars) {Statement::While(e, c)}
+            / "assert" sp1() e1:expr(vars) e2:("," sp() e:expr(vars) {e})?  {Statement::Assert(e1, e2)}
+            / "return" sp1() e:expr(vars) {Statement::Return(e)}
             / "return" sp() {Statement::Return(Expr::Val(Value::None))}  // empty "return" statement
             / "continue" {Statement::Continue}
             / "break" {Statement::Break}
-            / d:define(depth, vars, fl_cnt) {Statement::Defn(d)}
-            / e:expr(vars, fl_cnt) {Statement::Expr(e)}
+            / d:define(depth, vars) {Statement::Defn(d)}
+            / e:expr(vars) {Statement::Expr(e)}
 
         // pub rule code(depth: usize) -> CodeBlock = &" "*<{depth}> spaces:" "*<{depth},> s:(statement(depth) ** nl()) sp() {CodeBlock::Block(s)}
-        pub rule code(depth: usize, vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> CodeBlock =
-            spaces:" "*<{depth},> statements:(statement(depth, vars, fl_cnt) ** (next_line() indent(spaces.len()) nosp())) {CodeBlock{statements, depth: spaces.len()}}
-
-        pub rule scoped_code(depth: usize, vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> ScopedCodeBlock = c:code(depth, vars, fl_cnt) {ScopedCodeBlock{code: c, fast_local_size: *fl_cnt.borrow()}}
+        pub rule code(depth: usize, vars: &RefCell<AHashMap<String, ScopeInformation>>) -> CodeBlock =
+            spaces:" "*<{depth},> statements:(statement(depth, vars) ** (next_line() indent(spaces.len()) nosp())) {CodeBlock{statements, depth: spaces.len()}}
 
         rule traced<T>(e: rule<T>) -> T =
             &(input:$([_]*) {
@@ -219,12 +170,12 @@ parser! {
                 e.ok_or("")
             }
 
-        pub rule code_traced(vars: &RefCell<AHashMap<String, Rc<Variable>>>, fl_cnt: &RefCell<usize>) -> ScopedCodeBlock = traced(<scoped_code(0, vars, fl_cnt)>)
+        pub rule code_traced(vars: &RefCell<AHashMap<String, ScopeInformation>>) -> CodeBlock = traced(<code(0, vars)>)
     }
 }
 
 #[derive(Debug)]
-pub enum Comparitor {
+pub enum Comparator {
     Equal,
     NotEqual,
     GreaterThan,
@@ -239,7 +190,7 @@ pub enum Comparitor {
 
 #[derive(Debug)]
 pub enum Expr {
-    Var(Rc<Variable>),
+    Var(String),
     Val(Value),
     Times(Box<Expr>, Box<Expr>),
     Divide(Box<Expr>, Box<Expr>),
@@ -247,7 +198,7 @@ pub enum Expr {
     Minus(Box<Expr>, Box<Expr>),
     Pow(Box<Expr>, Box<Expr>),
     FunCall(Box<Expr>, Vec<Expr>),
-    Comparison(Box<Expr>, Comparitor, Box<Expr>),
+    Comparison(Box<Expr>, Comparator, Box<Expr>),
     Not(Box<Expr>),
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
@@ -256,7 +207,14 @@ pub enum Expr {
 #[derive(Debug)]
 pub struct Variable {
     pub name: String,
-    pub fast_locals_loc: Option<usize>,
+    pub fast_locals_location: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ScopeInformation {
+    pub variable: Rc<Variable>,
+    pub uses: usize,
+    pub has_definition: bool
 }
 
 #[derive(Debug)]
@@ -266,7 +224,7 @@ pub enum Define {
     DivEq(Rc<Variable>, Expr),
     MultEq(Rc<Variable>, Expr),
     VarDefn(Rc<Variable>, Expr),
-    FunDefn(Rc<Variable>, Vec<Rc<Variable>>, ScopedCodeBlock),
+    FunDefn(Rc<Variable>, Vec<Rc<Variable>>, CodeBlock, AHashMap<String, ScopeInformation>),
 }
 
 #[derive(Debug)]
@@ -286,10 +244,4 @@ pub enum Statement {
 pub struct CodeBlock {
     pub statements: Vec<Statement>,
     pub depth: usize,
-}
-
-#[derive(Debug)]
-pub struct ScopedCodeBlock {
-    pub code: CodeBlock,
-    pub fast_local_size: usize
 }
