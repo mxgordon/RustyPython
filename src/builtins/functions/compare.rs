@@ -1,22 +1,22 @@
+use rustpython_parser::ast::located::CmpOp;
 use crate::builtins::function_utils::call_function_1_arg_min;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyobject::{FuncReturnType, PyObject};
-use crate::parser::Comparator;
 use crate::pyarena::PyArena;
 
-pub fn compare_op(left: &PyObject, right: &PyObject, comp: &Comparator, arena: &mut PyArena) -> FuncReturnType {
+pub fn compare_op(left: &PyObject, right: &PyObject, comp: &CmpOp, arena: &mut PyArena) -> FuncReturnType {
     match comp {
-        Comparator::Equal => left_hand_compare_op(&PyMagicMethod::Eq, left, right, arena),
-        Comparator::NotEqual => left_hand_compare_op(&PyMagicMethod::Ne, left, right, arena),
-        Comparator::LessThan => left_hand_compare_op(&PyMagicMethod::Lt, left, right, arena),
-        Comparator::LessThanOrEqual => left_hand_compare_op(&PyMagicMethod::Le, left, right, arena),
-        Comparator::GreaterThan => left_hand_compare_op(&PyMagicMethod::Gt, left, right, arena),
-        Comparator::GreaterThanOrEqual => left_hand_compare_op(&PyMagicMethod::Ge, left, right, arena),
+        CmpOp::Eq => left_hand_compare_op(&PyMagicMethod::Eq, left, right, arena),
+        CmpOp::NotEq => left_hand_compare_op(&PyMagicMethod::Ne, left, right, arena),
+        CmpOp::Lt => left_hand_compare_op(&PyMagicMethod::Lt, left, right, arena),
+        CmpOp::LtE => left_hand_compare_op(&PyMagicMethod::Le, left, right, arena),
+        CmpOp::Gt => left_hand_compare_op(&PyMagicMethod::Gt, left, right, arena),
+        CmpOp::GtE => left_hand_compare_op(&PyMagicMethod::Ge, left, right, arena),
 
-        Comparator::Is => Ok(is_compare(false, left, right, arena)),
-        Comparator::IsNot => Ok(is_compare(true, left, right, arena)),
-        Comparator::In => {todo!()}
-        Comparator::NotIn => {todo!()}
+        CmpOp::Is => Ok(is_compare(false, left, right, arena)),
+        CmpOp::IsNot => Ok(is_compare(true, left, right, arena)),
+        CmpOp::In => {todo!()}
+        CmpOp::NotIn => {todo!()}
     }
 }
 

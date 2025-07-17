@@ -1,26 +1,82 @@
-use std::cell::Ref;
 use std::ops::Deref;
 use std::rc::Rc;
+use rustpython_parser::ast::{Mod, ModModule, Stmt, StmtReturn};
 use crate::builtins::function_utils::{call_function, eval_internal_func, eval_obj_init};
 use crate::builtins::functions::compare::compare_op;
 use crate::builtins::functions::math_op::math_op;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::magic_methods::PyMagicMethod::{Add, Mul, Pow, Sub, TrueDiv};
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject};
+use crate::builtins::structure::pyobject::{EmptyFuncReturnType, FuncReturnType, PyInternalObject, PyIteratorFlag, PyObject, StatementOperation};
 use crate::builtins::types::pybool::{convert_pyobj_to_bool};
 use crate::builtins::types::str::py_repr;
-use crate::parser::*;
+// use crate::parser::*;
 use crate::pyarena::PyArena;
 
-pub fn evaluate(code: CodeBlock) {
+pub fn evaluate_mod(code: Mod) {
+    // let mut arena =  PyArena::new();
+    let result = match code {
+        Mod::Module(module  ) => {evaluate_module(module)},
+        Mod::Interactive(_) => {todo!()}
+        Mod::Expression(_) => {todo!()}
+        Mod::FunctionType(_) => {todo!()}
+    };
+    
+    // let code_result = eval_code_block(&code, &mut arena);
+    
+    print!("Exit Value: {:?}", result);
+    
+    // if let Err(err) = code_result {
+    //     println!("{}", err);
+    // }
+}
+
+fn evaluate_module(module: ModModule) -> Result<(PyArena, i32), PyException> {
     let mut arena =  PyArena::new();
-    
-    let code_result = eval_code_block(&code, &mut arena);
-    
-    if let Err(err) = code_result {
-        println!("{}", err);
+
+    for statement in module.body {
+        let statement_value = match statement {
+            Stmt::Break(..) => {StatementOperation::Break}
+            Stmt::Continue(..) => {StatementOperation::Continue}
+            Stmt::Pass(..) => {StatementOperation::Pass}
+            Stmt::Return(stmt_return) => {StatementOperation::Return(eval_return_stmt(stmt_return, &mut arena)?)}
+            Stmt::Expr(_) => {}
+            Stmt::While(_) => {}
+            Stmt::If(_) => {}
+            Stmt::For(_) => {}
+            Stmt::Assign(_) => {}
+            Stmt::FunctionDef(_) => {}
+            // not implemented
+            Stmt::AsyncFunctionDef(_) => {todo!()}
+            Stmt::ClassDef(_) => {todo!()}
+            Stmt::Delete(_) => {todo!()}
+            Stmt::TypeAlias(_) => {todo!()}
+            Stmt::AugAssign(_) => {todo!()}
+            Stmt::AnnAssign(_) => {todo!()}
+            Stmt::AsyncFor(_) => {todo!()}
+            Stmt::With(_) => {todo!()}
+            Stmt::AsyncWith(_) => {todo!()}
+            Stmt::Match(_) => {todo!()}
+            Stmt::Raise(_) => {todo!()}
+            Stmt::Try(_) => {todo!()}
+            Stmt::TryStar(_) => {todo!()}
+            Stmt::Assert(_) => {todo!()}
+            Stmt::Import(_) => {todo!()}
+            Stmt::ImportFrom(_) => {todo!()}
+            Stmt::Global(_) => {todo!()}
+            Stmt::Nonlocal(_) => {todo!()}
+        }
     }
+
+    (arena, 0)
+}
+
+fn eval_return_stmt(stmt: StmtReturn, arena: &mut PyArena) -> Result<Option<PyObject>, PyException> {
+    // for expr in stmt.
+    if let Some(expr) = stmt.value {
+        return eval_expr(*expr, arena);
+    }
+    Ok(None)
 }
 
 fn eval_var<'a>(name: &str, arena: &'a PyArena) -> Result<&'a PyObject, PyException> {
@@ -167,7 +223,8 @@ fn eval_expr(expr: &Expr, arena: &mut PyArena) -> FuncReturnType {
 
 fn eval_defn_var(variable: &Rc<Variable>, expr: &Expr, arena: &mut PyArena) -> EmptyFuncReturnType {
     let result = eval_expr(expr, arena)?;
-    arena.get_current_frame_mut().set(variable, result);
+    // arena.get_current_frame_mut().set(variable, result);
+    arena.set(variable, result);
     
     Ok(())
 }

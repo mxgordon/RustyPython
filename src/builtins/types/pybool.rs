@@ -55,7 +55,7 @@ pub fn convert_pyobj_to_bool(pyobj: &PyObject, arena: &mut PyArena) -> Result<bo
         PyObject::Immutable(ref immutable) => convert_immutable_to_bool(immutable, arena),
         PyObject::Mutable(ref mutable) => convert_mutable_to_bool(pyobj, &mutable.borrow(), arena),
         PyObject::Internal(_) => {todo!()}
-        PyObject::IteratorFlag(_) => {panic!()}
+        // PyObject::IteratorFlag(_) => {panic!()}
     }
 }
 

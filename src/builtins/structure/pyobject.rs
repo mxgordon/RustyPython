@@ -1,19 +1,28 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::Debug;
 use std::rc::Rc;
-use crate::parser::CodeBlock;
+// use crate::parser::CodeBlock;
 use crate::pyarena::PyArena;
 use crate::builtins::structure::magic_methods::{PyMagicMethod};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyexception::PyException;
 use crate::builtins::structure::pyinstance::PyInstance;
 
+#[derive(Debug)]
+pub enum StatementOperation {
+    Return(Option<PyObject>),
+    Expression(PyObject),
+    Pass,
+    Continue,
+    Break
+}
+
 #[derive(Clone, Debug)]
 pub enum PyObject {
     Immutable(Rc<PyImmutableObject>),  // TODO, consider using Cow's here
     Mutable(PyPointer<PyMutableObject>),
     Internal(PyInternalObject),
-    IteratorFlag(PyIteratorFlag)
+    // IteratorFlag(PyIteratorFlag)
 }
 
 impl PyObject {
@@ -48,14 +57,14 @@ impl PyObject {
     }
     
     
-    pub fn break_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
-        PyObject::IteratorFlag(PyIteratorFlag::Break)
-    }
-    
-    pub fn continue_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
-        PyObject::IteratorFlag(PyIteratorFlag::Continue)
-    }
-    
+    // pub fn break_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
+    //     PyObject::IteratorFlag(PyIteratorFlag::Break)
+    // }
+    // 
+    // pub fn continue_() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
+    //     PyObject::IteratorFlag(PyIteratorFlag::Continue)
+    // }
+    // 
     pub fn create_new_none() -> Self {
         PyObject::Immutable(Rc::new(PyImmutableObject::None))
     }
@@ -68,9 +77,9 @@ impl PyObject {
         Self::new_immutable(PyImmutableObject::Bool(value))
     }
     
-    pub fn stop_iteration() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
-        PyObject::IteratorFlag(PyIteratorFlag::StopIteration)
-    }
+    // pub fn stop_iteration() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)
+    //     PyObject::IteratorFlag(PyIteratorFlag::StopIteration)
+    // }
     
     pub fn expect_immutable(&self) -> &Rc<PyImmutableObject> {
         match self {
@@ -97,7 +106,7 @@ impl PyObject {
         match self {
             PyObject::Immutable(inner) => inner.get_magic_method(py_magic_method, arena),
             PyObject::Mutable(inner) => inner.borrow().get_magic_method(py_magic_method, arena),
-            PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no magic methods")}
+            // PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no magic methods")}
             PyObject::Internal(_) => {todo!()}
         }
     }
@@ -106,7 +115,7 @@ impl PyObject {
         match *self {
             PyObject::Immutable(ref inner) => inner.get_class(arena).clone(),
             PyObject::Mutable(ref inner) => inner.borrow().get_class().clone(),
-            PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no class")}
+            // PyObject::IteratorFlag(_) => {panic!("IteratorFlag has no class")}
             PyObject::Internal(_) => {todo!()}
         }
     }
@@ -116,7 +125,7 @@ impl PyObject {
             PyObject::Immutable(immutable) => &*immutable.clone() as *const PyImmutableObject as usize,
             PyObject::Mutable(mutable) => &*mutable.clone().borrow() as *const PyMutableObject as usize,
             PyObject::Internal(internal) => internal.get_memory_location(),
-            PyObject::IteratorFlag(flag) => flag as *const PyIteratorFlag as usize
+            // PyObject::IteratorFlag(flag) => flag as *const PyIteratorFlag as usize
         }
     }
 }
@@ -189,25 +198,25 @@ impl PyInternalObject {
 
 #[derive(Debug)]
 pub enum PyMutableObject {
-    // Class(Rc<PyClass>),
+    Class(Rc<PyClass>),
     Instance(PyInstance),
-    Function(PyFunction),
+    // Function(PyFunction),
 }
 
 impl PyMutableObject {
     pub fn get_class(&self) -> &Rc<PyClass> {
         match self {
             PyMutableObject::Instance(py_instance) => py_instance.get_class(),
-            // PyMutableObject::Class(py_class) => py_class,
-            PyMutableObject::Function(_py_function) => todo!(),
+            PyMutableObject::Class(py_class) => py_class,
+            // PyMutableObject::Function(_py_function) => todo!(),
         }
     }
 
     pub fn get_field(&self, name: &str, arena: &mut PyArena) -> FuncReturnType {
         match self {
             PyMutableObject::Instance(instance) => instance.get_field(name, arena),
-            // PyMutableObject::Class(py_class) => todo!(),
-            PyMutableObject::Function(_py_function) => todo!(),
+            PyMutableObject::Class(py_class) => todo!(),
+            // PyMutableObject::Function(_py_function) => todo!(),
         }
     }
     
@@ -228,19 +237,19 @@ impl PyMutableObject {
 
     pub fn get_magic_method(&self, py_magic_method: &PyMagicMethod, _arena: &mut PyArena) -> Option<PyObject> {
         match self {
-            // PyMutableObject::Class(_) => {todo!()}
+            PyMutableObject::Class(_) => {todo!()}
             PyMutableObject::Instance(instance) => { instance.get_class().search_for_magic_method(py_magic_method) }
-            PyMutableObject::Function(_) => {todo!()}
+            // PyMutableObject::Function(_) => {todo!()}
         }
     }
 }
 
-#[derive(Debug)]
-pub struct PyFunction {
-    name: String,
-    args: Vec<String>,
-    body: Vec<CodeBlock>,
-}
+// #[derive(Debug)]
+// pub struct PyFunction {
+//     name: String,
+//     args: Vec<String>,
+//     body: Vec<CodeBlock>,
+// }
 
 pub type FuncReturnType = Result<PyObject, PyException>;
 pub type EmptyFuncReturnType = Result<(), PyException>;
