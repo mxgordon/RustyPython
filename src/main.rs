@@ -3,17 +3,16 @@
 #![feature(hash_raw_entry)]
 #![feature(get_mut_unchecked)]
 
-mod parser;
 mod evaluator;
 mod pyarena;
 mod builtins;
-mod preprocessor;
+mod new_evaluator;
 
 use std::env;
 use std::fs::File;
 use std::io::Read;
 use crate::evaluator::{evaluate};
-use crate::parser::{parse_code, remove_comments};
+use rustpython_parser::{lexer::{lex}, parse_tokens, Mode};
 
 #[macro_use]
 extern crate mopa;
@@ -31,23 +30,29 @@ fn main() {
 
     } else if args.len() > 2 {
         panic!("Expect 1 arg for the test file name, got: {}", args.len() - 1);
-    } else {
-        let filename = &args[1];
-        let mut file = File::open("tests/".to_string() + filename).unwrap_or_else(|_| panic!("file not found: {}", filename));
-
+    } 
+    let filename = &args[1];
+    let file_path = "tests/".to_string() + filename;
+    let mut file = File::open(file_path.clone()).unwrap_or_else(|_| panic!("file not found: {}", filename));
+    
+    {
         let _ = file.read_to_string(&mut contents);
     }
-    let contents = remove_comments(&contents);
-    let contents = contents.trim();
+    // let contents = remove_comments(&contents);
+    // let contents = contents.trim();
     
-    let parse_tree = parse_code(contents);
-    if let Ok(parse_tree) = parse_tree.0 {
+    let tokens = lex(&contents, Mode::Module);
+    let ast =  parse_tokens(tokens, Mode::Module, &file_path);
+    
+    // let parse_tree = parse_code(contents);
+    if let Ok(ast) = ast {
         
-        println!("{:?}", parse_tree);
+        println!("{:?}", ast);
         
-        evaluate(parse_tree);
+        evaluate(ast);
         
-    } else if let Err(parse_tree_err) = parse_tree.0 {
-        println!("Char: \"{}\"({})\nError: {:?}", contents.chars().nth(parse_tree_err.location.offset).unwrap_or_default(), contents.bytes().nth(parse_tree_err.location.offset).unwrap_or_default(), parse_tree_err);
+    } else if let Err(parse_error) = ast {
+        // println!("Char: \"{}\"({})\nError: {:?}", contents.chars().nth(parse_tree_err.location.offset).unwrap_or_default(), contents.bytes().nth(parse_tree_err.location.offset).unwrap_or_default(), parse_tree_err);
+        println!("{:?}", parse_error);
     }
 }

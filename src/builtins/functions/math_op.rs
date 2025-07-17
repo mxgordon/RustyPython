@@ -23,7 +23,7 @@ pub fn math_op(left: PyObject, right: PyObject, py_magic_method: PyMagicMethod, 
     right_hand_math_op(left, right, py_magic_method, arena)
 }
 
-fn right_hand_math_op(left: PyObject, right: PyObject, mut py_magic_method: PyMagicMethod,  arena: &mut PyArena) -> FuncReturnType {
+pub(crate) fn right_hand_math_op(left: PyObject, right: PyObject, mut py_magic_method: PyMagicMethod, arena: &mut PyArena) -> FuncReturnType {
     py_magic_method.make_right_handed();
     
     let right_math_func = right.get_magic_method(&py_magic_method, arena);

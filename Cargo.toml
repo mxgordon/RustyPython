@@ -11,6 +11,7 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 mopa = "0.2.2"
 ahash = "0.8.11"
+rustpython-parser = "0.4.0"
 
 [profile.release]
 lto = "fat"
