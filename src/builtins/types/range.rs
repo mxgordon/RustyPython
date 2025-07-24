@@ -2,6 +2,7 @@
 use std::fmt::{Debug};
 use std::rc::Rc;
 use ahash::AHashMap;
+use malachite::Integer;
 use crate::builtins::function_utils::init_internal_class;
 use crate::builtins::types::pyint::expect_int;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethods};
@@ -13,9 +14,9 @@ use crate::pyarena::PyArena;
 
 #[derive(Debug)]
 pub struct RangeInstance {
-    start: i64,
-    stop: i64,
-    step: i64
+    start: Integer,
+    stop: Integer,
+    step: Integer
 }
 
 impl PyInstanceInternal for RangeInstance {
@@ -31,9 +32,9 @@ impl PyInstanceInternal for RangeInstance {
 
     fn get_field(&self, key: &str, _pyarena: &mut PyArena) -> Option<PyObject> {
         match key {
-            "start" => Some(PyObject::new_int(self.start)),
-            "stop" => Some(PyObject::new_int(self.stop)),
-            "step" => Some(PyObject::new_int(self.step)),
+            "start" => Some(PyObject::new_int(self.start.clone())), // TODO remove clone because every time field is accessed it'll created a new pyobject
+            "stop" => Some(PyObject::new_int(self.stop.clone())),
+            "step" => Some(PyObject::new_int(self.step.clone())),
             _ => None
         }
     }
@@ -46,9 +47,9 @@ pub fn range__new__(arena: &mut PyArena, pyclass: Rc<PyClass>, args: &[PyObject]
     let second = args.get(1);
     let third = args.get(2);
 
-    let mut start: i64 = 0;
-    let stop: i64;
-    let mut step = 1;
+    let mut start = Integer::from(0);
+    let stop;
+    let mut step = Integer::from(1);
 
     if let Some(second) = second {
         start = first;
@@ -109,9 +110,9 @@ pub fn get_range_class(object_class: Rc<PyClass>) -> PyClass {
 
 #[derive(Debug)]
 struct RangeIteratorInstance {
-    current: i64,
-    stop: i64,
-    step: i64
+    current: Integer,
+    stop: Integer,
+    step: Integer
 }
 
 impl PyInstanceInternal for RangeIteratorInstance {
@@ -135,27 +136,27 @@ pub fn range_iterator__new__(arena: &mut PyArena, pyclass: Rc<PyClass>, args: &[
     Ok(PyObject::new_mutable(PyMutableObject::Instance(PyInstance::new_empty_attrs(
         pyclass,
         Box::new(RangeIteratorInstance {
-            current: range_internal.start,
-            stop: range_internal.stop,
-            step: range_internal.step,
+            current: range_internal.start.clone(), // TODO also remove clone from here
+            stop: range_internal.stop.clone(),
+            step: range_internal.step.clone(),
         })
     ))))
 }
 
-pub fn range_iterator__next__(_arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
+pub fn range_iterator__next__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
     let mut pyself = pyself.expect_mutable().borrow_mut();
     let instance = pyself.expect_instance_mut();
     
     if let Some(range_iterator_internal) = instance.internal.downcast_mut::<RangeIteratorInstance>() {
         let current = &mut range_iterator_internal.current;
-        let stop = range_iterator_internal.stop;
-        let step = range_iterator_internal.step;
+        let stop = range_iterator_internal.stop.clone();  // TODO more clones
+        let step = range_iterator_internal.step.clone();
         
         if (step > 0 && *current >= stop) || (step < 0 && *current <= stop) {
-            return Ok(PyObject::stop_iteration())  // TODO change this, in CPython it just returns null
+            return Err(arena.exceptions.stop_iteration.empty()); // TODO (maybe) change this, in CPython it just returns null
         }
         
-        let rtn_val = PyObject::new_immutable(PyImmutableObject::Int(*current));
+        let rtn_val = PyObject::new_immutable(PyImmutableObject::Int(current.clone()));
         
         *current += step;
         

@@ -1,7 +1,9 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::Debug;
 use std::rc::Rc;
-// use crate::parser::CodeBlock;
+use malachite::base::num::conversion::traits::RoundingFrom;
+use malachite::base::rounding_modes::RoundingMode;
+use malachite::Integer;
 use crate::pyarena::PyArena;
 use crate::builtins::structure::magic_methods::{PyMagicMethod};
 use crate::builtins::structure::pyclass::PyClass;
@@ -14,7 +16,8 @@ pub enum StatementOperation {
     Expression(PyObject),
     Pass,
     Continue,
-    Break
+    Break,
+    Normal
 }
 
 #[derive(Clone, Debug)]
@@ -30,7 +33,7 @@ impl PyObject {
         Self::new_immutable(PyImmutableObject::Str(value))
     }
     
-    pub fn new_int(value: i64) -> Self {
+    pub fn new_int(value: Integer) -> Self {
         Self::new_immutable(PyImmutableObject::Int(value))
     }
     pub fn new_float(value: f64) -> Self {
@@ -135,7 +138,7 @@ impl PyObject {
 pub enum PyImmutableObject {
     None,
     NotImplemented,
-    Int(i64),
+    Int(Integer),
     Float(f64),
     Bool(bool),
     Str(String),  // TODO, maybe use immutable string type here
@@ -302,9 +305,20 @@ impl<T> PyPointer<T> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum PyIteratorFlag {
-    Break,
-    Continue,
-    StopIteration
+
+pub trait ToF64 {
+    fn to_f64(&self) -> f64;
 }
+
+impl ToF64 for Integer {
+    fn to_f64(&self) -> f64 {
+        f64::rounding_from(self, RoundingMode::Nearest).0
+    }
+}
+
+// #[derive(Debug, Clone)]
+// pub enum PyIteratorFlag {
+//     Break,
+//     Continue,
+//     StopIteration
+// }

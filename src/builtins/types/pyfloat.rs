@@ -5,7 +5,7 @@ use crate::builtins::function_utils::call_function_1_arg_min;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, UnaryFuncType};
+use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, ToF64, UnaryFuncType};
 use crate::builtins::structure::pyobject::PyInternalFunction::{BivariateFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
@@ -22,7 +22,7 @@ pub fn expect_float(pyobj: &PyObject, arena: &mut PyArena) -> Result<f64, PyExce
 pub fn expect_float_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<f64, PyException> {
     match **pyobj.expect_immutable() {
         PyImmutableObject::Float(ref value) => {Ok(*value)}
-        PyImmutableObject::Int(ref value) => {Ok(*value as f64)}
+        PyImmutableObject::Int(ref value) => {Ok(value.to_f64())}
         PyImmutableObject::Bool(ref value) => {Ok(if *value {1.0} else {0.0})}
         ref _value => {
             Err(arena.exceptions.not_implemented_error.empty())
@@ -50,7 +50,7 @@ pub fn convert_mutable_to_float(pyobj: &PyObject, mutable_obj: &PyMutableObject,
 
 pub fn convert_immutable_to_float(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<f64, PyException> {
     match *immutable_obj {
-        PyImmutableObject::Int(ref value) => Ok(*value as f64),  // copy the value
+        PyImmutableObject::Int(ref value) => Ok(value.to_f64()),
         PyImmutableObject::Float(ref value) => Ok(*value),
         PyImmutableObject::Str(ref value) => Ok(value.parse::<f64>().unwrap()), // TODO remove unwrap
         PyImmutableObject::Bool(ref value) => Ok(if *value { 1.0 } else { 0.0 }),

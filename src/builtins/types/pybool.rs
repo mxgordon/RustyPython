@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use std::rc::Rc;
 use ahash::AHashMap;
+use malachite::Integer;
 use crate::builtins::function_utils::call_function_1_arg_min;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
@@ -86,7 +87,7 @@ pub fn bool__bool__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
 
 pub fn bool__int__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
     let value = expect_bool(&pyself, arena)?;
-    Ok(PyObject::new_int(value as i64))
+    Ok(PyObject::new_int(Integer::from(value)))
 }
 
 

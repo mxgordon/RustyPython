@@ -2,7 +2,7 @@ use std::rc::Rc;
 use crate::builtins::types::object::expect_class;
 use crate::builtins::structure::magic_methods::PyMagicMethod;
 use crate::builtins::structure::pyclass::PyClass;
-use crate::builtins::structure::pyobject::{FuncReturnType, PyInternalFunction, PyInternalObject, PyMutableObject, PyObject};
+use crate::builtins::structure::pyobject::{FuncReturnType, PyInternalFunction, PyInternalObject, PyObject};
 use crate::pyarena::PyArena;
 
 pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> FuncReturnType {
@@ -15,7 +15,7 @@ pub fn call_function(func: PyObject, args: &[PyObject], arena: &mut PyArena) -> 
         }
         PyObject::Mutable(inner) => {
             match &*inner.borrow() {
-                PyMutableObject::Function(_) => {todo!()}
+                // PyMutableObject::Function(_) => {todo!()}
                 _ => {panic!("Mutable object is not a function")}
             }
         }
@@ -33,7 +33,7 @@ pub fn call_function_1_arg_min(func: &PyObject, first_arg: &PyObject, args: &[Py
         }
         PyObject::Mutable(inner) => {
             match &*inner.borrow() {
-                PyMutableObject::Function(_) => {todo!()}
+                // PyMutableObject::Function(_) => {todo!()}
                 _ => {panic!("Mutable object is not a function")}
             }
         }
