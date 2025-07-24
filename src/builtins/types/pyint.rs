@@ -1,17 +1,22 @@
 #![allow(non_snake_case)]
+use malachite::base::num::arithmetic::traits::Pow;
 use std::rc::Rc;
 use ahash::AHashMap;
+use malachite::base::num::conversion::traits::{RoundingFrom, SaturatingFrom};
+use malachite::base::rounding_modes::RoundingMode;
+use malachite::Integer;
+use malachite::natural::conversion::string::from_sci_string::FromSciStringHelper;
 use crate::builtins::function_utils::call_function_1_arg_min;
 use crate::builtins::structure::magic_methods::{py_magic_methods_defaults, PyMagicMethod, PyMagicMethods};
 use crate::builtins::structure::pyclass::PyClass;
 use crate::builtins::structure::pyexception::PyException;
-use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, UnaryFuncType};
+use crate::builtins::structure::pyobject::{BivariateFuncType, FuncReturnType, NewFuncType, PyImmutableObject, PyMutableObject, PyObject, ToF64, UnaryFuncType};
 use crate::builtins::structure::pyobject::PyInternalFunction::{BivariateFunc, NewFunc, UnaryFunc};
 use crate::pyarena::PyArena;
 
-pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyException> {
+pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<Integer, PyException> {
     match **pyobj.expect_immutable() {
-        PyImmutableObject::Int(ref value) => {Ok(*value)}
+        PyImmutableObject::Int(ref value) => {Ok(value.clone())}  // TODO check if there is a way to avoid this clone
         ref value => {
             let message = format!("'{}' object cannot be interpreted as an integer", value.get_class(arena).get_name());
             Err(arena.exceptions.type_error.instantiate(message))
@@ -19,17 +24,17 @@ pub fn expect_int(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyExcept
     }
 }
 
-pub fn expect_int_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<i64, PyException> {
+pub fn expect_int_promotion(pyobj: &PyObject, arena: &mut PyArena) -> Result<Integer, PyException> {
     match **pyobj.expect_immutable() {
-        PyImmutableObject::Int(ref value) => {Ok(*value)}
-        PyImmutableObject::Bool(ref value) => {Ok(*value as i64)}
+        PyImmutableObject::Int(ref value) => {Ok(value.clone())}  // TODO check if there is a way to avoid this clone
+        PyImmutableObject::Bool(ref value) => {Ok((*value as i8).into())}
         ref _value => {
             Err(arena.exceptions.not_implemented_error.empty())
         },
     }
 }
 
-pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<i64, PyException> {
+pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, arena: &mut PyArena ) -> Result<Integer, PyException> {
     let int_func = mutable_obj.get_magic_method(&PyMagicMethod::Int, arena);
 
     if let Some(int_func) = int_func {
@@ -47,12 +52,12 @@ pub fn convert_mutable_to_int(pyobj: &PyObject, mutable_obj: &PyMutableObject, a
     Err(arena.exceptions.type_error.instantiate(message))
 }
 
-pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<i64, PyException> {
+pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut PyArena ) -> Result<Integer, PyException> {
     match *immutable_obj {
-        PyImmutableObject::Int(ref value) => Ok(*value),  // copy the value
-        PyImmutableObject::Bool(ref value) => Ok(if *value { 1 } else { 0 }),
-        PyImmutableObject::Float(ref value) => Ok(*value as i64),
-        PyImmutableObject::Str(ref value) => value.parse::<i64>().map_err(|_error| {
+        PyImmutableObject::Int(ref value) => Ok(value.clone()),  // TODO avoid cloning the value
+        PyImmutableObject::Bool(ref value) => Ok((*value as i8).into()),
+        PyImmutableObject::Float(ref value) => Ok(Integer::rounding_from(*value, RoundingMode::Down).0),
+        PyImmutableObject::Str(ref value) => Integer::parse_int(value.as_ref(), 10).ok_or_else(|| {
             let message = format!("invalid literal for int() with base 10: '{}'", value);  // TODO add support for different bases
             arena.exceptions.type_error.instantiate(message)
         }),
@@ -63,7 +68,7 @@ pub fn convert_immutable_to_int(immutable_obj: &PyImmutableObject, arena: &mut P
     }
 }
 
-pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut PyArena) -> Result<(i64, i64), PyException> {
+pub fn parse_int_op_func_params(pyself: &PyObject, other: &PyObject, arena: &mut PyArena) -> Result<(Integer, Integer), PyException> {
     let self_value = expect_int_promotion(pyself, arena)?; // this is done for easy inheritance to bool
     let other_value = expect_int_promotion(other, arena)?;
     Ok((self_value, other_value))
@@ -83,7 +88,7 @@ pub fn int__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject
             },
         }
     } else {
-        new_value = 0;
+        new_value = Integer::from(0);
     }
 
     Ok(PyObject::new_int(new_value))  // I don't know how to do inheritance with this
@@ -116,33 +121,33 @@ pub fn int__mul__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> F
 pub fn int__truediv__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_float(self_value as f64 / other_value as f64))
+    Ok(PyObject::new_float(self_value.to_f64() / other_value.to_f64()))
 }
 
 pub fn int__rtruediv__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_float(other_value as f64 / self_value as f64))
+    Ok(PyObject::new_float(other_value.to_f64() / self_value.to_f64()))
 }
 
 pub fn int__pow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
     
     if other_value < 0 {
-        return Ok(PyObject::new_float((self_value as f64).powf(other_value as f64)));
+        return Ok(PyObject::new_float(self_value.to_f64().powf(other_value.to_f64())));
     }
 
-    Ok(PyObject::new_int(self_value.pow(other_value as u32)))
+    Ok(PyObject::new_int(self_value.pow(u64::saturating_from(&other_value))))  // Caps exponent at the u64 limit
 }
 
 pub fn int__rpow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
     if other_value < 0 {
-        return Ok(PyObject::new_float((other_value as f64).powf(self_value as f64)));
+        return Ok(PyObject::new_float(other_value.to_f64().powf(self_value.to_f64())));
     }
 
-    Ok(PyObject::new_int(other_value.pow(self_value as u32)))
+    Ok(PyObject::new_int(other_value.pow(u64::saturating_from(&self_value))))  // Caps exponent at the u64 limit
 }
 
 pub fn int__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {

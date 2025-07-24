@@ -3,7 +3,6 @@
 #![feature(hash_raw_entry)]
 #![feature(get_mut_unchecked)]
 
-mod evaluator;
 mod pyarena;
 mod builtins;
 mod new_evaluator;
@@ -11,8 +10,8 @@ mod new_evaluator;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use crate::evaluator::{evaluate};
 use rustpython_parser::{lexer::{lex}, parse_tokens, Mode};
+use crate::new_evaluator::evaluate_mod;
 
 #[macro_use]
 extern crate mopa;
@@ -38,18 +37,15 @@ fn main() {
     {
         let _ = file.read_to_string(&mut contents);
     }
-    // let contents = remove_comments(&contents);
-    // let contents = contents.trim();
     
     let tokens = lex(&contents, Mode::Module);
     let ast =  parse_tokens(tokens, Mode::Module, &file_path);
-    
-    // let parse_tree = parse_code(contents);
+
     if let Ok(ast) = ast {
         
-        println!("{:?}", ast);
+        // println!("{:?}", ast);
         
-        evaluate(ast);
+        evaluate_mod(ast);
         
     } else if let Err(parse_error) = ast {
         // println!("Char: \"{}\"({})\nError: {:?}", contents.chars().nth(parse_tree_err.location.offset).unwrap_or_default(), contents.bytes().nth(parse_tree_err.location.offset).unwrap_or_default(), parse_tree_err);
