@@ -87,7 +87,7 @@ pub fn bool__bool__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
 
 pub fn bool__int__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
     let value = expect_bool(&pyself, arena)?;
-    Ok(PyObject::new_int(Integer::from(value)))
+    Ok(arena.statics.get_int(Integer::from(value)))
 }
 
 

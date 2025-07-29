@@ -84,3 +84,14 @@ if __name__ == '__main__':
         print(f"{py_time/rusty_time :.2f}x faster than CPython")
 
     print(f"{rs_time/rusty_time :.2f}x faster than RustPython")
+
+
+"""
+5.83x slower than CPython
+1.29x faster than RustPython
+
+4.62x slower than CPython
+2.16x faster than RustPython
+
+
+"""

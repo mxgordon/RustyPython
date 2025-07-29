@@ -61,18 +61,19 @@ impl PyArena {
         // }
     }
 
-    // pub fn update(&mut self, key: &str, value: PyObject) {
-    //     let entry = self.state.raw_entry_mut().from_key(key);
-    // 
-    //     match entry {
-    //         RawEntryMut::Occupied(entry) => {
-    //             entry.get().set(value);
-    //         }
-    //         RawEntryMut::Vacant(_entry) => {
-    //             panic!("Tried to update, but entry was vacant");
-    //         }
-    //     }
-    // }
+    pub fn update(&mut self, key: &str, value: PyObject) {
+        let entry = self.state.raw_entry_mut().from_key(key);
+
+        match entry {
+            RawEntryMut::Occupied(mut entry) => {
+                entry.insert(value);
+                    // .get().set(value);
+            }
+            RawEntryMut::Vacant(_entry) => {
+                panic!("Tried to update, but entry was vacant");
+            }
+        }
+    }
 
     pub fn get(&self, key: &str) -> Option<&PyObject> {
         // unsafe {

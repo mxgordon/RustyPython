@@ -5,13 +5,13 @@
 
 mod pyarena;
 mod builtins;
-mod new_evaluator;
+mod evaluator;
 
 use std::env;
 use std::fs::File;
 use std::io::Read;
 use rustpython_parser::{lexer::{lex}, parse_tokens, Mode};
-use crate::new_evaluator::evaluate_mod;
+use crate::evaluator::evaluate_mod;
 
 #[macro_use]
 extern crate mopa;
