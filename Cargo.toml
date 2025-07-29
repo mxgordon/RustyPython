@@ -6,12 +6,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-peg = "0.8.5"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 mopa = "0.2.2"
 ahash = "0.8.11"
-rustpython-parser = "0.4.0"
+#rustpython-parser = "0.4.0"
+rustpython-parser = {git = "https://github.com/mxgordon/RustyPython-parser.git", features = ["lalrpop"]}
 malachite = "0.6.1"
 
 [profile.release]
@@ -25,5 +25,6 @@ codegen-units = 1
 debug = true
 lto = "off"
 
-[features]
-trace = ["peg/trace"]
+[profile.profiling]
+inherits = "release"
+debug = true

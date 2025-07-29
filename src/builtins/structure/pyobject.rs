@@ -33,9 +33,6 @@ impl PyObject {
         Self::new_immutable(PyImmutableObject::Str(value))
     }
     
-    pub fn new_int(value: Integer) -> Self {
-        Self::new_immutable(PyImmutableObject::Int(value))
-    }
     pub fn new_float(value: f64) -> Self {
         Self::new_immutable(PyImmutableObject::Float(value))
     }
@@ -78,6 +75,20 @@ impl PyObject {
     
     pub fn create_new_bool(value: bool) -> Self {
         Self::new_immutable(PyImmutableObject::Bool(value))
+    }
+    
+    pub fn new_int_uncached(value: Integer) -> Self {
+        Self::new_immutable(PyImmutableObject::Int(value))
+    }
+    
+    pub fn create_cached_ints(lower_value: i32, upper_value: i32) -> Vec<PyObject> {
+        let mut ints = Vec::new();
+        
+        for i in lower_value..(upper_value + 1) {
+            ints.push(Self::new_int_uncached(Integer::from(i)));
+        }
+        
+        ints
     }
     
     // pub fn stop_iteration() -> Self {  // TODO prob should be moved out of the pyobject class (currently in here for legacy reasons)

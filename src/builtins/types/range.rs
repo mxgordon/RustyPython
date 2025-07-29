@@ -30,11 +30,11 @@ impl PyInstanceInternal for RangeInstance {
         None
     }
 
-    fn get_field(&self, key: &str, _pyarena: &mut PyArena) -> Option<PyObject> {
+    fn get_field(&self, key: &str, arena: &mut PyArena) -> Option<PyObject> {
         match key {
-            "start" => Some(PyObject::new_int(self.start.clone())), // TODO remove clone because every time field is accessed it'll created a new pyobject
-            "stop" => Some(PyObject::new_int(self.stop.clone())),
-            "step" => Some(PyObject::new_int(self.step.clone())),
+            "start" => Some(arena.statics.get_int_borrow(&self.start)), // TODO remove clone because every time field is accessed it'll created a new pyobject
+            "stop" => Some(arena.statics.get_int_borrow(&self.stop)),
+            "step" => Some(arena.statics.get_int_borrow(&self.step)),
             _ => None
         }
     }

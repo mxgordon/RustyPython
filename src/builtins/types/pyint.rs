@@ -91,31 +91,31 @@ pub fn int__new__(arena: &mut PyArena, _pyclass: Rc<PyClass>, pyargs: &[PyObject
         new_value = Integer::from(0);
     }
 
-    Ok(PyObject::new_int(new_value))  // I don't know how to do inheritance with this
+    Ok(arena.statics.get_int(new_value))  // I don't know how to do inheritance with this
 }
 
 pub fn int__add__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
     
-    Ok(PyObject::new_int(self_value + other_value))
+    Ok(arena.statics.get_int(self_value + other_value))
 }
 
 pub fn int__sub__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
     
-    Ok(PyObject::new_int(self_value - other_value))
+    Ok(arena.statics.get_int(self_value - other_value))
 }
 
 pub fn int__rsub__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
     
-    Ok(PyObject::new_int(other_value - self_value))
+    Ok(arena.statics.get_int(other_value - self_value))
 }
 
 pub fn int__mul__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
     let (self_value, other_value) = parse_int_op_func_params(pyself, other, arena)?;
 
-    Ok(PyObject::new_int(self_value * other_value))
+    Ok(arena.statics.get_int(self_value * other_value))
 }
 
 pub fn int__truediv__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
@@ -137,7 +137,7 @@ pub fn int__pow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> F
         return Ok(PyObject::new_float(self_value.to_f64().powf(other_value.to_f64())));
     }
 
-    Ok(PyObject::new_int(self_value.pow(u64::saturating_from(&other_value))))  // Caps exponent at the u64 limit
+    Ok(arena.statics.get_int(self_value.pow(u64::saturating_from(&other_value))))  // Caps exponent at the u64 limit
 }
 
 pub fn int__rpow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> FuncReturnType {
@@ -147,7 +147,7 @@ pub fn int__rpow__(arena: &mut PyArena, pyself: &PyObject, other: &PyObject) -> 
         return Ok(PyObject::new_float(other_value.to_f64().powf(self_value.to_f64())));
     }
 
-    Ok(PyObject::new_int(other_value.pow(u64::saturating_from(&self_value))))  // Caps exponent at the u64 limit
+    Ok(arena.statics.get_int(other_value.pow(u64::saturating_from(&self_value))))  // Caps exponent at the u64 limit
 }
 
 pub fn int__repr__(arena: &mut PyArena, pyself: &PyObject) -> FuncReturnType {
